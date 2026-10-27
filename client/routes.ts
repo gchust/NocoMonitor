@@ -1,19 +1,102 @@
-import { Home } from 'lucide-react';
+import { Activity, Boxes, Globe, LayoutDashboard, Siren } from 'lucide-react';
 import {
   defineAppRoutes,
   type AppClientRouteContribution,
 } from '@nocobase/app-client/plugins';
 
+import systemSettingsRoutes from './pages/settings/routes.js';
+
+/** Every monitoring page is granted as one settings item, `monitoring`; `manage` gates changes inside the pages. */
+const monitoringRead = {
+  resource: { type: 'settings', id: 'monitoring' },
+  action: 'read',
+} as const;
+
 const appRoutes: AppClientRouteContribution = defineAppRoutes([
   {
     // Every signed-in user reaches the landing page. `authz: 'skip'` takes it out of page authorization entirely, so
-    // no permission change can leave a user signed in with nowhere to land.
+    // no permission change can leave a user signed in with nowhere to land; the overview's API still requires
+    // `monitoring` read, and the page says so to a user without it.
     authz: 'skip',
     auth: 'required',
-    componentLoader: () => import('./pages/home/index.js'),
+    componentLoader: () => import('./pages/overview/index.js'),
     name: 'home',
-    navigation: { title: 'navigation.home', icon: Home },
+    navigation: {
+      title: 'monitoring.navigation.overview',
+      icon: LayoutDashboard,
+      order: 1,
+    },
     path: '/',
+  },
+  {
+    auth: 'required',
+    authz: monitoringRead,
+    componentLoader: () => import('./pages/monitors/index.js'),
+    name: 'monitors',
+    navigation: {
+      title: 'monitoring.navigation.monitors',
+      icon: Activity,
+      order: 2,
+    },
+    path: '/monitors',
+    children: [
+      {
+        componentLoader: () => import('./pages/monitors/detail.js'),
+        name: 'monitor',
+        path: ':monitorId',
+      },
+    ],
+  },
+  {
+    auth: 'required',
+    authz: monitoringRead,
+    componentLoader: () => import('./pages/incidents/index.js'),
+    name: 'incidents',
+    navigation: {
+      title: 'monitoring.navigation.incidents',
+      icon: Siren,
+      order: 3,
+    },
+    path: '/incidents',
+    children: [
+      {
+        componentLoader: () => import('./pages/incidents/detail.js'),
+        name: 'incident',
+        path: ':incidentId',
+      },
+    ],
+  },
+  {
+    auth: 'required',
+    authz: monitoringRead,
+    componentLoader: () => import('./pages/services/index.js'),
+    name: 'services',
+    navigation: {
+      title: 'monitoring.navigation.services',
+      icon: Boxes,
+      order: 4,
+    },
+    path: '/services',
+  },
+  {
+    auth: 'required',
+    authz: monitoringRead,
+    componentLoader: () => import('./pages/status-pages/index.js'),
+    name: 'statusPages',
+    navigation: {
+      title: 'monitoring.navigation.statusPages',
+      icon: Globe,
+      order: 5,
+    },
+    path: '/status-pages',
+  },
+  {
+    // The public status page: anyone may read it, signed in or not, and it renders outside the shell.
+    auth: 'optional',
+    authz: 'skip',
+    componentLoader: () => import('./pages/status/public.js'),
+    name: 'publicStatus',
+    path: '/status/:slug',
   },
   {
     // Declares no navigation, so the application decides where its entry goes (for example a sidebar item with an
@@ -64,6 +147,9 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
   },
 ]);
 
-const routes: readonly AppClientRouteContribution[] = [appRoutes];
+const routes: readonly AppClientRouteContribution[] = [
+  appRoutes,
+  systemSettingsRoutes,
+];
 
 export default routes;

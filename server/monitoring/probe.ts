@@ -53,7 +53,8 @@ function stringify(value: unknown): string {
 
 async function readBody(response: Response): Promise<string> {
   if (!response.body) return '';
-  const reader = response.body.getReader();
+  const reader: ReadableStreamDefaultReader<Uint8Array> =
+    response.body.getReader();
   const chunks: Uint8Array[] = [];
   let size = 0;
   for (;;) {
@@ -73,9 +74,11 @@ function describeError(error: unknown, timeoutMs: number): string {
   if (error instanceof Error) {
     if (error.name === 'TimeoutError' || error.name === 'AbortError')
       return `Timed out after ${timeoutMs} ms`;
-    const cause = (error as Error & { cause?: { code?: string; message?: string } })
-      .cause;
-    if (cause?.code) return `${error.message}: ${cause.code}${cause.message ? ` (${cause.message})` : ''}`;
+    const cause = (
+      error as Error & { cause?: { code?: string; message?: string } }
+    ).cause;
+    if (cause?.code)
+      return `${error.message}: ${cause.code}${cause.message ? ` (${cause.message})` : ''}`;
     return error.message;
   }
   return String(error);
@@ -90,7 +93,10 @@ export async function probe(
   fetchImpl: typeof fetch = fetch,
 ): Promise<ProbeResult> {
   const started = performance.now();
-  const details: Record<string, unknown> = { url: target.url, method: target.method };
+  const details: Record<string, unknown> = {
+    url: target.url,
+    method: target.method,
+  };
   let response: Response;
   try {
     response = await fetchImpl(target.url, {
@@ -99,7 +105,10 @@ export async function probe(
         'user-agent': 'NocoMonitor/1.0 (+uptime probe)',
         ...(target.headers ?? {}),
       },
-      body: target.method === 'GET' || target.method === 'HEAD' ? undefined : (target.body ?? undefined),
+      body:
+        target.method === 'GET' || target.method === 'HEAD'
+          ? undefined
+          : (target.body ?? undefined),
       redirect: 'follow',
       signal: AbortSignal.timeout(target.timeoutMs),
     });
@@ -140,7 +149,11 @@ export async function probe(
   if (!statusMatches(target.expectedStatus, response.status))
     return fail(`HTTP ${response.status}, expected ${target.expectedStatus}`);
 
-  if (target.type === 'keyword' && target.keyword && !body.includes(target.keyword))
+  if (
+    target.type === 'keyword' &&
+    target.keyword &&
+    !body.includes(target.keyword)
+  )
     return fail(`The response does not contain "${target.keyword}"`);
 
   if (target.type === 'json' && target.jsonPath) {
@@ -151,16 +164,27 @@ export async function probe(
       return fail('The response is not valid JSON');
     }
     const actual = readJsonPath(parsed, target.jsonPath);
-    if (target.jsonExpected !== null && target.jsonExpected !== undefined && stringify(actual) !== target.jsonExpected)
-      return fail(`${target.jsonPath} is ${stringify(actual)}, expected ${target.jsonExpected}`);
+    if (
+      target.jsonExpected !== null &&
+      target.jsonExpected !== undefined &&
+      stringify(actual) !== target.jsonExpected
+    )
+      return fail(
+        `${target.jsonPath} is ${stringify(actual)}, expected ${target.jsonExpected}`,
+      );
   }
 
-  const degraded = target.degradedLatencyMs !== null && target.degradedLatencyMs > 0 && latencyMs > target.degradedLatencyMs;
+  const degraded =
+    target.degradedLatencyMs !== null &&
+    target.degradedLatencyMs > 0 &&
+    latencyMs > target.degradedLatencyMs;
   return {
     status: degraded ? 'degraded' : 'up',
     latencyMs,
     httpStatus: response.status,
-    error: degraded ? `Slow response: ${latencyMs} ms (threshold ${target.degradedLatencyMs} ms)` : null,
+    error: degraded
+      ? `Slow response: ${latencyMs} ms (threshold ${target.degradedLatencyMs} ms)`
+      : null,
     details,
   };
 }

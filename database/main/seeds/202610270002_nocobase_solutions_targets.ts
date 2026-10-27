@@ -40,7 +40,8 @@ const services = [
 export default defineSeed({
   name: '202610270002_nocobase_solutions_targets',
 
-  async run({ repository }) {
+  async run(context) {
+    const repository = (name: string) => context.repository(name);
     const now = new Date();
     for (const service of services) {
       const serviceId = `seed-${service.key}`;

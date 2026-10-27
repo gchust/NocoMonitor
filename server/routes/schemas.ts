@@ -4,10 +4,26 @@ const Id = z.string().min(1).max(64);
 const Time = z.iso.datetime();
 const NullableTime = Time.nullable();
 
-export const MonitorStatusSchema = z.enum(['pending', 'up', 'degraded', 'down', 'paused']);
-export const IncidentStatusSchema = z.enum(['investigating', 'identified', 'monitoring', 'resolved']);
+export const MonitorStatusSchema = z.enum([
+  'pending',
+  'up',
+  'degraded',
+  'down',
+  'paused',
+]);
+export const IncidentStatusSchema = z.enum([
+  'investigating',
+  'identified',
+  'monitoring',
+  'resolved',
+]);
 export const IncidentSeveritySchema = z.enum(['minor', 'major', 'critical']);
-export const RemediationLevelSchema = z.enum(['off', 'suggest', 'approve', 'auto']);
+export const RemediationLevelSchema = z.enum([
+  'off',
+  'suggest',
+  'approve',
+  'auto',
+]);
 export const ServiceHealthSchema = z.enum([
   'operational',
   'degraded',
@@ -182,7 +198,11 @@ export const IncidentDetailSchema = z.object({
 
 export const PublicStatusSchema = z
   .object({
-    page: z.object({ slug: z.string(), title: z.string(), description: z.string().nullable() }),
+    page: z.object({
+      slug: z.string(),
+      title: z.string(),
+      description: z.string().nullable(),
+    }),
     health: ServiceHealthSchema,
     services: z.array(
       z.object({
@@ -193,7 +213,11 @@ export const PublicStatusSchema = z
         uptime: z.number().nullable(),
         days: z.array(UptimeDaySchema),
         components: z.array(
-          z.object({ name: z.string(), region: z.string().nullable(), status: MonitorStatusSchema }),
+          z.object({
+            name: z.string(),
+            region: z.string().nullable(),
+            status: MonitorStatusSchema,
+          }),
         ),
       }),
     ),
@@ -207,7 +231,11 @@ export const PublicStatusSchema = z
         startedAt: Time,
         resolvedAt: NullableTime,
         updates: z.array(
-          z.object({ status: IncidentStatusSchema.nullable(), body: z.string(), createdAt: Time }),
+          z.object({
+            status: IncidentStatusSchema.nullable(),
+            body: z.string(),
+            createdAt: Time,
+          }),
         ),
       }),
     ),
@@ -223,7 +251,9 @@ export const ServiceParams = z.object({ serviceId: Id });
 export const MonitorParams = z.object({ monitorId: Id });
 export const IncidentParams = z.object({ incidentId: Id });
 export const StatusPageParams = z.object({ statusPageId: Id });
-export const PublicStatusParams = z.object({ slug: z.string().min(1).max(128) });
+export const PublicStatusParams = z.object({
+  slug: z.string().min(1).max(128),
+});
 
 /**
  * A PATCH body: every field of `schema` optional, and none defaulted. `.partial()` alone keeps each `.default()`, which
@@ -233,10 +263,14 @@ function patchOf<TShape extends z.ZodRawShape>(schema: z.ZodObject<TShape>) {
   const shape = Object.fromEntries(
     Object.entries(schema.shape).map(([key, field]) => [
       key,
-      ((field instanceof z.ZodDefault ? field.unwrap() : field) as z.ZodType).optional(),
+      (
+        (field instanceof z.ZodDefault ? field.unwrap() : field) as z.ZodType
+      ).optional(),
     ]),
   );
-  return z.strictObject(shape) as unknown as z.ZodType<Partial<z.output<z.ZodObject<TShape>>>>;
+  return z.strictObject(shape) as unknown as z.ZodType<
+    Partial<z.output<z.ZodObject<TShape>>>
+  >;
 }
 
 const Slug = z
@@ -251,44 +285,64 @@ export const ServiceInputSchema = z.strictObject({
   slug: Slug,
   description: z.string().max(5000).nullable().default(null),
   groupName: z.string().trim().max(255).nullable().default(null),
-  repoUrl: z.url({ protocol: /^https?$/ }).max(512).nullable().default(null),
+  repoUrl: z
+    .url({ protocol: /^https?$/ })
+    .max(512)
+    .nullable()
+    .default(null),
   runbook: z.string().max(20000).nullable().default(null),
   sortOrder: z.number().int().min(0).max(100000).default(0),
 });
 export const ServicePatchSchema = patchOf(ServiceInputSchema);
 
-export const MonitorInputSchema = z
-  .strictObject({
-    serviceId: Id,
-    name: z.string().trim().min(1).max(255),
-    type: z.enum(['http', 'keyword', 'json']),
-    region: z.string().trim().max(64).nullable().default(null),
-    url: z.url({ protocol: /^https?$/ }).max(2048),
-    method: z.enum(['GET', 'HEAD', 'POST']).default('GET'),
-    headers: z.record(z.string().max(256), z.string().max(4096)).nullable().default(null),
-    body: z.string().max(65536).nullable().default(null),
-    expectedStatus: z
-      .string()
-      .trim()
-      .regex(/^\d{3}(-\d{3})?(,\s*\d{3}(-\d{3})?)*$/, 'Use codes or ranges such as 200-299,301.')
-      .default('200-299'),
-    keyword: z.string().max(512).nullable().default(null),
-    jsonPath: z.string().max(255).nullable().default(null),
-    jsonExpected: z.string().max(512).nullable().default(null),
-    intervalSec: z.number().int().min(20).max(86400).default(60),
-    timeoutMs: z.number().int().min(1000).max(60000).default(10000),
-    degradedLatencyMs: z.number().int().min(1).max(60000).nullable().default(null),
-    failureThreshold: z.number().int().min(1).max(20).default(2),
-    recoveryThreshold: z.number().int().min(1).max(20).default(2),
-    enabled: z.boolean().default(true),
-    autoDiagnose: z.boolean().default(true),
-    remediationLevel: RemediationLevelSchema.default('off'),
-    sortOrder: z.number().int().min(0).max(100000).default(0),
-  });
+export const MonitorInputSchema = z.strictObject({
+  serviceId: Id,
+  name: z.string().trim().min(1).max(255),
+  type: z.enum(['http', 'keyword', 'json']),
+  region: z.string().trim().max(64).nullable().default(null),
+  url: z.url({ protocol: /^https?$/ }).max(2048),
+  method: z.enum(['GET', 'HEAD', 'POST']).default('GET'),
+  headers: z
+    .record(z.string().max(256), z.string().max(4096))
+    .nullable()
+    .default(null),
+  body: z.string().max(65536).nullable().default(null),
+  expectedStatus: z
+    .string()
+    .trim()
+    .regex(
+      /^\d{3}(-\d{3})?(,\s*\d{3}(-\d{3})?)*$/,
+      'Use codes or ranges such as 200-299,301.',
+    )
+    .default('200-299'),
+  keyword: z.string().max(512).nullable().default(null),
+  jsonPath: z.string().max(255).nullable().default(null),
+  jsonExpected: z.string().max(512).nullable().default(null),
+  intervalSec: z.number().int().min(20).max(86400).default(60),
+  timeoutMs: z.number().int().min(1000).max(60000).default(10000),
+  degradedLatencyMs: z
+    .number()
+    .int()
+    .min(1)
+    .max(60000)
+    .nullable()
+    .default(null),
+  failureThreshold: z.number().int().min(1).max(20).default(2),
+  recoveryThreshold: z.number().int().min(1).max(20).default(2),
+  enabled: z.boolean().default(true),
+  autoDiagnose: z.boolean().default(true),
+  remediationLevel: RemediationLevelSchema.default('off'),
+  sortOrder: z.number().int().min(0).max(100000).default(0),
+});
 export const MonitorPatchSchema = patchOf(MonitorInputSchema);
 
 export const ChecksQuery = z.object({
-  hours: z.coerce.number().int().min(1).max(24 * 14).default(24),
+  hours: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 14)
+    .default(24),
 });
 
 export const IncidentListQuery = z.object({

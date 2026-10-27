@@ -21,7 +21,10 @@ export const monitoringServiceToken: ServiceToken<MonitoringService> =
   createServiceToken<MonitoringService>('nocomonitor/monitoring-service');
 
 /** The settings item every monitoring page and endpoint is checked against. */
-export const MONITORING_RESOURCE = { type: 'settings', id: 'monitoring' } as const;
+export const MONITORING_RESOURCE = {
+  type: 'settings',
+  id: 'monitoring',
+} as const;
 export type MonitoringAction = 'read' | 'manage';
 
 /** How often the probe loop looks for due monitors; each monitor keeps its own interval. */
@@ -71,7 +74,9 @@ export default class MonitoringProvider extends ServiceProvider<Application> {
     // Commands such as `db apply` boot the application without serving it; they must not start probing.
     if (this.app.nodeEnv === 'test') return;
     const service = this.app.container.resolve(monitoringServiceToken);
-    const logger = this.app.container.resolve(loggingToken).getLogger('monitoring');
+    const logger = this.app.container
+      .resolve(loggingToken)
+      .getLogger('monitoring');
     this.executor = this.app.container
       .resolve(jobExecutorServiceToken)
       .getScheduleExecutor(appPackage.name);

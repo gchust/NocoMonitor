@@ -4,10 +4,7 @@ export type MonitorType = 'http' | 'keyword' | 'json';
 export type CheckStatus = 'up' | 'degraded' | 'down';
 export type MonitorStatus = CheckStatus | 'pending' | 'paused';
 export type IncidentStatus =
-  | 'investigating'
-  | 'identified'
-  | 'monitoring'
-  | 'resolved';
+  'investigating' | 'identified' | 'monitoring' | 'resolved';
 export type IncidentSeverity = 'minor' | 'major' | 'critical';
 export type RemediationLevel = 'off' | 'suggest' | 'approve' | 'auto';
 export type AiState = 'none' | 'queued' | 'running' | 'completed' | 'failed';
@@ -108,11 +105,7 @@ export interface IncidentRecord {
 }
 
 export type IncidentUpdateKind =
-  | 'status'
-  | 'note'
-  | 'diagnosis'
-  | 'remediation'
-  | 'system';
+  'status' | 'note' | 'diagnosis' | 'remediation' | 'system';
 
 export interface IncidentUpdateRecord {
   id: string;

@@ -44,7 +44,7 @@ describe('app client routes', () => {
     }
   });
 
-  it('pins the page authorization of every signed-in page', () => {
+  it('pins the page authorization of every signed-in page', async () => {
     // A stored page grant records the page's `authz` resource id (`authorizedAs`), not its route `name`: changing an
     // id is a data change that has to migrate the grants that reference it, not a refactor — so changing this list
     // deliberately is the point. A new page that requires sign-in adds an entry here, because a page that checks
@@ -52,28 +52,21 @@ describe('app client routes', () => {
     const resolved = resolveRoutes();
 
     // The landing page and the inbox opted out of page authorization, so they are reachable by every signed-in user.
+    // Every monitoring page is the one `monitoring` settings item; the settings pages keep their own grants.
     expect(pageAuthorizations(resolved.routes)).toEqual([
-      { name: 'home', authorizedAs: null },
       { name: 'inbox', authorizedAs: null },
-    ]);
-  });
-
-  it('keeps a bare application home-only and supports settings registration as business capabilities are developed', async () => {
-    expect(
-      pagePaths(resolveRoutes().routes).some((path) =>
-        path.startsWith('/settings'),
-      ),
-    ).toBe(false);
-    const built = resolveAppClientContributions([
-      {
-        packageName: '@nocobase/app-template-default',
-        routes: [...applicationRoutes, systemSettingsRoutes],
-        source: 'application',
-      },
-    ]);
-    expect(pageAuthorizations(built.routes)).toEqual([
       { name: 'home', authorizedAs: null },
-      { name: 'inbox', authorizedAs: null },
+      ...[
+        'monitors',
+        'monitor',
+        'incidents',
+        'incident',
+        'services',
+        'statusPages',
+      ].map((name) => ({
+        name,
+        authorizedAs: 'settings:monitoring',
+      })),
       { name: 'settingsUsers', authorizedAs: 'user:*' },
       { name: 'settingsUserCreate', authorizedAs: 'user:*' },
       { name: 'settingsUser', authorizedAs: 'user:*' },
@@ -99,10 +92,22 @@ describe('app client routes', () => {
         authorizedAs: 'settings:authorization.default-access',
       })),
     ]);
-    for (const loader of componentLoadersIn(built.routes))
+    for (const loader of componentLoadersIn(resolved.routes))
       await expect(loader()).resolves.toMatchObject({
         default: expect.any(Function),
       });
+  });
+
+  it('serves the public status page outside page authorization', () => {
+    // Customers read a status page without an account; its API answers published pages only.
+    const route = applicationRoutes[0].routes.find(
+      (entry) => entry.name === 'publicStatus',
+    );
+    expect(route).toMatchObject({
+      path: '/status/:slug',
+      auth: 'optional',
+      authz: 'skip',
+    });
   });
 
   it('keeps the inbox out of the application navigation', () => {
