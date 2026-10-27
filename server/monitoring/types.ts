@@ -17,10 +17,68 @@ export interface ServiceRecord {
   groupName: string | null;
   repoUrl: string | null;
   runbook: string | null;
+  /** The fixes this service allows, which agents and people pick by key. */
+  remediations: RemediationAction[] | null;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
 }
+
+/**
+ * A fix a service allows: one fixed HTTP call, such as a deploy hook or a restart endpoint. Whoever asks for it names
+ * only its key and a reason; the URL, method, headers and body are the operator's.
+ */
+export interface RemediationAction {
+  key: string;
+  title: string;
+  description: string | null;
+  method: 'POST' | 'GET' | 'PUT';
+  url: string;
+  headers: Record<string, string> | null;
+  body: string | null;
+}
+
+export type RemediationStatus =
+  | 'pending'
+  | 'rejected'
+  | 'running'
+  | 'failed'
+  | 'verifying'
+  | 'verified'
+  | 'unverified';
+
+export interface RemediationRecord {
+  id: string;
+  incidentId: string;
+  serviceId: string;
+  monitorId: string | null;
+  actionKey: string;
+  actionTitle: string;
+  reason: string;
+  status: RemediationStatus;
+  requestedByType: 'agent' | 'user';
+  requestedByName: string | null;
+  runId: string | null;
+  decidedById: string | null;
+  decidedByName: string | null;
+  decidedAt: Date | null;
+  executedAt: Date | null;
+  httpStatus: number | null;
+  output: string | null;
+  verifyAt: Date | null;
+  verifiedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** Which agent diagnoses incidents, and as whom its runs act when no person started them. */
+// A type rather than an interface, so it is a plain JSON value the settings row can store.
+export type AiSettings = {
+  enabled: boolean;
+  agentId: string | null;
+  actorUserId: string | null;
+  actorName: string | null;
+};
 
 export interface MonitorRecord {
   id: string;

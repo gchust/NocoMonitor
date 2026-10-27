@@ -33,6 +33,21 @@ export const ServiceHealthSchema = z.enum([
   'unknown',
 ]);
 
+/** What a header value reads as in answers; sending it back keeps the stored value. */
+export const MASKED = '••••••';
+
+export const RemediationActionSchema = z
+  .object({
+    key: z.string(),
+    title: z.string(),
+    description: z.string().nullable(),
+    method: z.enum(['POST', 'GET', 'PUT']),
+    url: z.string(),
+    headers: z.record(z.string(), z.string()).nullable(),
+    body: z.string().nullable(),
+  })
+  .meta({ ref: 'NocoMonitorRemediationAction' });
+
 export const ServiceSchema = z
   .object({
     id: z.string(),
@@ -42,6 +57,7 @@ export const ServiceSchema = z
     groupName: z.string().nullable(),
     repoUrl: z.string().nullable(),
     runbook: z.string().nullable(),
+    remediations: z.array(RemediationActionSchema).nullable(),
     sortOrder: z.number(),
     createdAt: Time,
     updatedAt: Time,
@@ -291,6 +307,34 @@ export const ServiceInputSchema = z.strictObject({
     .nullable()
     .default(null),
   runbook: z.string().max(20000).nullable().default(null),
+  remediations: z
+    .array(
+      z.strictObject({
+        key: z
+          .string()
+          .trim()
+          .regex(
+            /^[a-z0-9][a-z0-9-]{0,63}$/,
+            'Use lowercase letters, digits and dashes.',
+          ),
+        title: z.string().trim().min(1).max(255),
+        description: z.string().max(2000).nullable().default(null),
+        method: z.enum(['POST', 'GET', 'PUT']).default('POST'),
+        url: z.url({ protocol: /^https?$/ }).max(2048),
+        headers: z
+          .record(z.string().max(256), z.string().max(4096))
+          .nullable()
+          .default(null),
+        body: z.string().max(65536).nullable().default(null),
+      }),
+    )
+    .max(20)
+    .refine(
+      (actions) => new Set(actions.map((a) => a.key)).size === actions.length,
+      'Each action needs its own key.',
+    )
+    .nullable()
+    .default(null),
   sortOrder: z.number().int().min(0).max(100000).default(0),
 });
 export const ServicePatchSchema = patchOf(ServiceInputSchema);
@@ -382,4 +426,106 @@ export const StatusPagePatchSchema = patchOf(StatusPageInputSchema);
 
 export const OverviewQuery = z.object({
   days: z.coerce.number().int().min(1).max(90).default(90),
+});
+
+// ----------------------------------------------------------------------------------------------------------------
+// AI: settings, diagnosis, remediation, and the commands diagnosis runs call
+// ----------------------------------------------------------------------------------------------------------------
+
+export const AiSettingsSchema = z
+  .object({
+    enabled: z.boolean(),
+    agentId: z.string().nullable(),
+    actorUserId: z.string().nullable(),
+    actorName: z.string().nullable(),
+  })
+  .meta({ ref: 'NocoMonitorAiSettings' });
+
+export const AiSettingsInputSchema = z.strictObject({
+  enabled: z.boolean(),
+  agentId: z.string().min(1).max(128).nullable(),
+});
+
+export const RemediationSchema = z
+  .object({
+    id: z.string(),
+    incidentId: z.string(),
+    serviceId: z.string(),
+    monitorId: z.string().nullable(),
+    actionKey: z.string(),
+    actionTitle: z.string(),
+    reason: z.string(),
+    status: z.enum([
+      'pending',
+      'rejected',
+      'running',
+      'failed',
+      'verifying',
+      'verified',
+      'unverified',
+    ]),
+    requestedByType: z.enum(['agent', 'user']),
+    requestedByName: z.string().nullable(),
+    runId: z.string().nullable(),
+    decidedByName: z.string().nullable(),
+    decidedAt: NullableTime,
+    executedAt: NullableTime,
+    httpStatus: z.number().nullable(),
+    output: z.string().nullable(),
+    verifyAt: NullableTime,
+    verifiedAt: NullableTime,
+    createdAt: Time,
+  })
+  .meta({ ref: 'NocoMonitorRemediation' });
+
+export const RemediationOptionsSchema = z.object({
+  level: RemediationLevelSchema,
+  actions: z.array(
+    z.object({
+      key: z.string(),
+      title: z.string(),
+      description: z.string().nullable(),
+    }),
+  ),
+  remediations: z.array(RemediationSchema),
+});
+
+export const RemediationParams = z.object({ remediationId: Id });
+export const RemediationRequestSchema = z.strictObject({
+  action: z.string().trim().min(1).max(64),
+  reason: z.string().trim().min(1).max(4000),
+});
+export const RemediationRejectSchema = z.strictObject({
+  note: z.string().trim().max(2000).optional(),
+});
+
+export const DiagnosisStartedSchema = z.object({ runId: z.string() });
+
+export const DiagnosisInputSchema = z.strictObject({
+  summary: z.string().trim().min(1).max(4000),
+  rootCause: z.string().trim().max(20000).nullable().default(null),
+  confidence: z.enum(['low', 'medium', 'high']).nullable().default(null),
+  suggestedActions: z
+    .array(
+      z.object({
+        title: z.string().trim().min(1).max(255),
+        description: z.string().max(4000).optional(),
+        risk: z.enum(['low', 'medium', 'high']).optional(),
+        command: z.string().max(4000).optional(),
+      }),
+    )
+    .max(10)
+    .default([]),
+});
+
+export const AgentIncidentContextSchema = z
+  .record(z.string(), z.unknown())
+  .meta({ ref: 'NocoMonitorAgentIncidentContext' });
+
+export const ProbeResultSchema = z.object({
+  status: z.enum(['up', 'degraded', 'down']),
+  httpStatus: z.number().nullable(),
+  latencyMs: z.number().nullable(),
+  error: z.string().nullable(),
+  details: z.record(z.string(), z.unknown()).nullable(),
 });

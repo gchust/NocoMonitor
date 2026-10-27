@@ -562,6 +562,8 @@ export class MonitoringService {
       status?: IncidentStatus;
       publicVisible: boolean;
       actor: Actor;
+      /** What kind of update a note without a status change is; `note` by default. */
+      kind?: IncidentUpdateKind;
     },
   ): Promise<{ incident: IncidentRecord; update: IncidentUpdateRecord }> {
     const events: MonitoringEvent[] = [];
@@ -588,7 +590,7 @@ export class MonitoringService {
         return { incident: updated, update: update! };
       }
       const update = await this.addUpdate(conn, incidentId, {
-        kind: 'note',
+        kind: input.kind ?? 'note',
         body: input.body,
         actor: input.actor,
         publicVisible: input.publicVisible,
@@ -675,6 +677,14 @@ export class MonitoringService {
         .repository<MonitorRecord>('mnMonitors')
         .findOne({ filter: { id } })) ?? null
     );
+  }
+
+  /** The incident whose diagnosis is the agent run `runId`. */
+  async findIncidentByRun(runId: string): Promise<IncidentRecord | null> {
+    const incident = await this.db
+      .repository<IncidentRecord>('mnIncidents')
+      .findOne({ filter: { aiRunId: runId } });
+    return incident ?? null;
   }
 
   async getService(id: string): Promise<ServiceRecord | null> {
@@ -1146,6 +1156,7 @@ export type ServiceInput = Pick<
   | 'groupName'
   | 'repoUrl'
   | 'runbook'
+  | 'remediations'
   | 'sortOrder'
 >;
 

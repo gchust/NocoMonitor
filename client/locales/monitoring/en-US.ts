@@ -6,6 +6,16 @@ const monitoringEnUS = {
     incidents: 'Incidents',
     services: 'Services',
     statusPages: 'Status pages',
+    ai: 'AI diagnosis',
+    agentManagement: 'Agent management',
+    agents: 'Agents',
+    runtimes: 'Runtimes',
+    skills: 'Skills',
+    usage: 'Usage',
+    connectRuntime: 'Connect a runtime',
+    newSkill: 'New skill',
+    skill: 'Skill',
+    models: 'Models',
   },
   authorization: {
     section: 'Monitoring',
@@ -238,6 +248,110 @@ const monitoringEnUS = {
       completed: 'Diagnosis complete',
       failed: 'The diagnosis did not finish',
     },
+    diagnose: 'Diagnose with AI',
+    diagnoseAgain: 'Diagnose again',
+    requested: 'The agent will investigate',
+    settings: {
+      title: 'AI diagnosis',
+      description:
+        'When a monitor goes down, an agent investigates the cause, records it on the incident, and — where you allow it — applies a fix the probes then verify.',
+      steps: {
+        detect: {
+          title: 'Detect',
+          description:
+            'Probes in every region check each service; consecutive failures open an incident.',
+        },
+        diagnose: {
+          title: 'Diagnose',
+          description:
+            'The agent reads the checks, compares regions, probes again and reads the service’s code, then records the root cause.',
+        },
+        remediate: {
+          title: 'Remediate',
+          description:
+            'Per monitor: diagnose only, suggest, fix after approval, or fix automatically — always one of the service’s whitelisted actions.',
+        },
+        verify: {
+          title: 'Verify',
+          description:
+            'The probes, not the agent, decide whether it worked; a fix that did not help escalates to people.',
+        },
+      },
+      agentTitle: 'Diagnosis agent',
+      agent: 'Agent',
+      chooseAgent: 'Choose an agent',
+      unavailableAgent: 'The configured agent (no longer reported)',
+      online: 'Online',
+      offline: 'No runtime online',
+      busy: '{{count}} runs in progress',
+      runsAs: 'Automatic diagnoses run as {{name}}, who saved these settings.',
+      runsAsYou: 'Automatic diagnoses will run as you when you save.',
+      auto: 'Diagnose new incidents automatically',
+      autoHint:
+        'For monitors with AI diagnosis on. Off, people still ask for a diagnosis from the incident.',
+      saved: 'AI settings saved',
+      noAgents: 'No agent yet',
+      noAgentsHint:
+        'Agents run on a runtime: a machine with Claude Code or Codex signed in. Connect one, then enable an agent for it.',
+      connectRuntime: 'Connect a runtime',
+      openAgents: 'Agents',
+      manageRuntimes: 'Manage runtimes',
+      safetyTitle: 'Guardrails',
+      safety: {
+        readOnly:
+          'Diagnosis runs are read-only: the service’s repository is checked out without push rights, and nothing is committed.',
+        whitelist:
+          'An agent can only request a fix the service defines; NocoMonitor makes the call, not the agent.',
+        tiers:
+          'Each monitor sets how far an agent may go: diagnose only, suggest, fix after approval, or fix automatically.',
+        verify:
+          'After a fix, the probes verify recovery; if the service still fails, the incident goes back to investigating for people.',
+        runner:
+          'A runtime is not a sandbox: run it on a dedicated machine or VM.',
+      },
+    },
+  },
+  fixes: {
+    title: 'Fixes',
+    available: 'Run a fix',
+    approve: 'Approve and run',
+    reject: 'Reject',
+    approved: 'Fix approved',
+    rejected: 'Fix rejected',
+    run: 'Run fix',
+    running: 'Running…',
+    runTitle: 'Run “{{title}}”?',
+    runDescription:
+      'NocoMonitor makes the configured call now; the probes then verify whether the service recovers.',
+    reason: 'Why',
+    requestedBy: {
+      agent: 'Requested by agent {{name}}',
+      user: 'Run by {{name}}',
+    },
+    status: {
+      pending: 'Waiting for approval',
+      rejected: 'Rejected',
+      running: 'Running',
+      failed: 'Failed',
+      verifying: 'Applied — verifying',
+      verified: 'Verified',
+      unverified: 'Did not help',
+    },
+  },
+  agents: {
+    subject: 'Incident',
+    group: 'Incidents',
+    read: 'Read incidents',
+    readDescription:
+      'Read the incident a run diagnoses, and probe its monitor again.',
+    diagnose: 'Record diagnoses',
+    diagnoseDescription:
+      'Record the root cause, confidence and suggested actions on the incident.',
+    remediate: 'Request fixes',
+    remediateDescription:
+      'Request one of the service’s fix actions, within the monitor’s remediation tier.',
+    triggerOpened: 'Incident opened',
+    triggerManual: 'Asked by a person',
   },
   services: {
     title: 'Services',
@@ -255,6 +369,16 @@ const monitoringEnUS = {
     deleteConfirm: 'Delete {{name}}?',
     deleted: 'Service deleted',
     hasMonitors: 'Delete its monitors first',
+    fixes: 'Fix actions',
+    fixesHint:
+      'Fixed HTTP calls (a deploy hook, a restart endpoint) the agent may request and people may run. The agent only names the key; it never sees the URL or header values.',
+    fixKey: 'Key',
+    fixDescriptionPlaceholder: 'When this fix helps, for the agent to judge',
+    fixHeaders: 'Headers',
+    fixHeadersHint:
+      'One “Name: value” per line. Saved values show masked; leave them masked to keep them.',
+    addFix: 'Add fix action',
+    removeFix: 'Remove',
   },
   statusPages: {
     title: 'Status pages',

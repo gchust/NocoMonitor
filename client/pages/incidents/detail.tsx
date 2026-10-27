@@ -7,6 +7,7 @@ import {
   MegaphoneIcon,
   UserIcon,
   WrenchIcon,
+  SparklesIcon,
 } from 'lucide-react';
 import { useId, useState, type FormEvent, type ReactElement } from 'react';
 import { Link, useOutletContext, useParams } from 'react-router';
@@ -18,6 +19,7 @@ import { StatusBadge } from '#components/status-badge';
 import { Button } from '#components/ui/button';
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -57,6 +59,7 @@ import {
 import { errorText, useCanManage } from '../monitoring/utils.js';
 import { SwitchField } from '../monitors/monitor-form.js';
 import type { IncidentsOutletContext } from './index.js';
+import { RemediationPanel } from './remediation-panel.js';
 
 interface IncidentDetail {
   incident: Incident;
@@ -153,7 +156,17 @@ export default function IncidentDetailPage(): ReactElement {
 
             <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]'>
               <div className='space-y-6'>
-                <AiPanel incident={incident} />
+                <AiPanel
+                  incident={incident}
+                  canManage={canManage}
+                  onChanged={reload}
+                />
+                <RemediationPanel
+                  incidentId={incident.id}
+                  resolved={incident.status === 'resolved'}
+                  canManage={canManage}
+                  onChanged={reload}
+                />
                 <Timeline updates={data.updates} />
               </div>
               {canManage ? (
@@ -179,8 +192,37 @@ export default function IncidentDetailPage(): ReactElement {
 }
 
 /** What the diagnosis agent concluded, or where it is with its work. */
-function AiPanel({ incident }: { readonly incident: Incident }): ReactElement {
+function AiPanel({
+  incident,
+  canManage,
+  onChanged,
+}: {
+  readonly incident: Incident;
+  readonly canManage: boolean;
+  readonly onChanged: () => void;
+}): ReactElement {
   const { t, i18n } = useTranslation();
+  const api = useApiClient();
+  const toaster = useToaster();
+  const [asking, setAsking] = useState(false);
+  const diagnose = async (): Promise<void> => {
+    setAsking(true);
+    try {
+      await api.request({
+        path: `incidents/${encodeURIComponent(incident.id)}/diagnose`,
+        method: 'POST',
+      });
+      toaster.show({ type: 'success', title: t('monitoring.ai.requested') });
+      onChanged();
+    } catch (error) {
+      toaster.show({
+        type: 'error',
+        title: errorText(error, t('monitoring.errors.save')),
+      });
+    } finally {
+      setAsking(false);
+    }
+  };
   const working =
     incident.aiState === 'queued' || incident.aiState === 'running';
   const actions = (incident.aiSuggestedActions ?? []).filter(
@@ -211,6 +253,21 @@ function AiPanel({ incident }: { readonly incident: Incident }): ReactElement {
               })
             : t(`monitoring.ai.state.${incident.aiState}`)}
         </CardDescription>
+        {canManage ? (
+          <CardAction>
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={asking || working}
+              onClick={() => void diagnose()}
+            >
+              <SparklesIcon data-icon='inline-start' />
+              {incident.aiState === 'none'
+                ? t('monitoring.ai.diagnose')
+                : t('monitoring.ai.diagnoseAgain')}
+            </Button>
+          </CardAction>
+        ) : null}
       </CardHeader>
       <CardContent className='space-y-4 text-sm'>
         {incident.aiSummary ? (

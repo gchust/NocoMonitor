@@ -208,3 +208,11 @@ logging:
     enabled: true
     # Set true for human-readable terminal output.
     pretty: false
+
+# The Agents plugin: how runners name this App, and the CLI runs call it with (package.json nocobase.cli.bin).
+agents:
+  app:
+    id: nocomonitor
+    name: NocoMonitor
+  cli:
+    name: nocomonitor

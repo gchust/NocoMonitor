@@ -22,7 +22,11 @@ import {
 import { Hono, type MiddlewareHandler } from 'hono';
 
 import { IncidentNotFoundError } from '../monitoring/service.js';
-import type { Actor } from '../monitoring/types.js';
+import type {
+  Actor,
+  RemediationAction,
+  ServiceRecord,
+} from '../monitoring/types.js';
 import {
   MONITORING_RESOURCE,
   monitoringServiceToken,
@@ -50,6 +54,7 @@ import {
   ServiceParams,
   ServicePatchSchema,
   ServiceSchema,
+  MASKED,
   StatusPageInputSchema,
   StatusPageParams,
   StatusPagePatchSchema,
@@ -57,16 +62,16 @@ import {
 } from './schemas.js';
 
 const TAGS = ['NocoMonitor'];
-const DOMAIN = 'nocomonitor';
+export const DOMAIN = 'nocomonitor';
 
-type Env = AuthEnv & AuthorizationEnv;
+export type Env = AuthEnv & AuthorizationEnv;
 
-function notFound(reason: string, message: string): ApiError {
+export function notFound(reason: string, message: string): ApiError {
   return new ApiError({ status: 'NOT_FOUND', reason, domain: DOMAIN, message });
 }
 
 /** Checks a monitoring action before the route reads its input, so a caller without it learns nothing about it. */
-function allow(action: MonitoringAction): MiddlewareHandler<Env> {
+export function allow(action: MonitoringAction): MiddlewareHandler<Env> {
   return async (context, next) => {
     await context
       .get('authz')
@@ -75,7 +80,7 @@ function allow(action: MonitoringAction): MiddlewareHandler<Env> {
   };
 }
 
-function actorOf(context: {
+export function actorOf(context: {
   get(key: 'auth'): AuthEnv['Variables']['auth'];
 }): Actor {
   const user = context.get('auth')?.user;
@@ -164,7 +169,7 @@ export const monitoringRoutes: AppApiRouteContribution<Application> =
       allow('read'),
       async (context) => {
         // A bounded configuration list: it is not paged, and says how many it holds.
-        const data = await monitoring().listServices();
+        const data = (await monitoring().listServices()).map(masked);
         return context.json({ data, meta: { total: data.length } });
       },
     );
@@ -188,7 +193,7 @@ export const monitoringRoutes: AppApiRouteContribution<Application> =
           const data = await monitoring().createService(
             context.req.valid('json'),
           );
-          return context.json({ data }, 201);
+          return context.json({ data: masked(data) }, 201);
         } catch (error) {
           if (isUniqueViolation(error))
             throw new ApiError({
@@ -219,16 +224,25 @@ export const monitoringRoutes: AppApiRouteContribution<Application> =
       apiValidator('json', ServicePatchSchema),
       async (context) => {
         const { serviceId } = context.req.valid('param');
-        const data = await monitoring().updateService(
-          serviceId,
-          context.req.valid('json'),
-        );
+        const values = context.req.valid('json');
+        const existing = await monitoring().getService(serviceId);
+        if (!existing)
+          throw notFound(
+            'SERVICE_NOT_FOUND',
+            `Service ${serviceId} was not found.`,
+          );
+        const data = await monitoring().updateService(serviceId, {
+          ...values,
+          ...(values.remediations !== undefined
+            ? { remediations: unmasked(values.remediations, existing) }
+            : {}),
+        });
         if (!data)
           throw notFound(
             'SERVICE_NOT_FOUND',
             `Service ${serviceId} was not found.`,
           );
-        return context.json({ data });
+        return context.json({ data: masked(data) });
       },
     );
 
@@ -348,7 +362,7 @@ export const monitoringRoutes: AppApiRouteContribution<Application> =
         return context.json({
           data: {
             monitor,
-            service: owner,
+            service: owner && masked(owner),
             days,
             uptime: total
               ? days.reduce((sum, day) => sum + day.up + day.degraded, 0) /
@@ -598,7 +612,12 @@ export const monitoringRoutes: AppApiRouteContribution<Application> =
           service.listIncidentUpdates(incidentId),
         ]);
         return context.json({
-          data: { incident, service: owner, monitor, updates },
+          data: {
+            incident,
+            service: owner && masked(owner),
+            monitor,
+            updates,
+          },
         });
       },
     );
@@ -767,3 +786,45 @@ export const monitoringRoutes: AppApiRouteContribution<Application> =
     router.route('/', routes);
     return router;
   });
+
+/** A service as answers show it: the values of its fixes' headers (tokens, say) never leave the server. */
+function masked(service: ServiceRecord): ServiceRecord {
+  return {
+    ...service,
+    remediations:
+      service.remediations?.map((action) => ({
+        ...action,
+        headers: action.headers
+          ? Object.fromEntries(
+              Object.keys(action.headers).map((name) => [name, MASKED]),
+            )
+          : null,
+      })) ?? null,
+  };
+}
+
+/** Puts back the stored value of every header a client sent back masked, matched by action key and header name. */
+function unmasked(
+  actions: RemediationAction[] | null,
+  existing: ServiceRecord,
+): RemediationAction[] | null {
+  return (
+    actions?.map((action) => {
+      const stored = existing.remediations?.find(
+        (candidate) => candidate.key === action.key,
+      );
+      return {
+        ...action,
+        headers: action.headers
+          ? Object.fromEntries(
+              Object.entries(action.headers).flatMap(([name, value]) => {
+                if (value !== MASKED) return [[name, value]];
+                const kept = stored?.headers?.[name];
+                return kept === undefined ? [] : [[name, kept]];
+              }),
+            )
+          : null,
+      };
+    }) ?? null
+  );
+}

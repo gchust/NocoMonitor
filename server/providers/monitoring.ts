@@ -15,10 +15,15 @@ import {
   type ServiceToken,
 } from '@nocobase/service-provider';
 
+import { RemediationService } from '../monitoring/remediation.js';
 import { MonitoringService } from '../monitoring/service.js';
 
 export const monitoringServiceToken: ServiceToken<MonitoringService> =
   createServiceToken<MonitoringService>('nocomonitor/monitoring-service');
+
+/** Fixes for incidents and the AI settings: see `RemediationService`. */
+export const remediationServiceToken: ServiceToken<RemediationService> =
+  createServiceToken<RemediationService>('nocomonitor/remediation-service');
 
 /** The settings item every monitoring page and endpoint is checked against. */
 export const MONITORING_RESOURCE = {
@@ -36,6 +41,7 @@ export default class MonitoringProvider extends ServiceProvider<Application> {
   public readonly name: string = 'nocomonitor/monitoring';
 
   private executor: ScheduleExecutor | undefined;
+  private stopListening: (() => void) | undefined;
 
   public override register(): void {
     this.app.container.singleton(monitoringServiceToken, () => {
@@ -46,6 +52,15 @@ export default class MonitoringProvider extends ServiceProvider<Application> {
         logging.getLogger('monitoring'),
       );
     });
+    this.app.container.singleton(
+      remediationServiceToken,
+      () =>
+        new RemediationService(
+          this.app.container.resolve(databaseManagerToken),
+          this.app.container.resolve(monitoringServiceToken),
+          this.app.container.resolve(loggingToken).getLogger('remediation'),
+        ),
+    );
   }
 
   public override async boot(): Promise<void> {
@@ -74,6 +89,12 @@ export default class MonitoringProvider extends ServiceProvider<Application> {
     // Commands such as `db apply` boot the application without serving it; they must not start probing.
     if (this.app.nodeEnv === 'test') return;
     const service = this.app.container.resolve(monitoringServiceToken);
+    const remediation = this.app.container.resolve(remediationServiceToken);
+    // A resolved incident settles the fixes still being verified for it: the service recovered.
+    this.stopListening = service.on(async (event) => {
+      if (event.type === 'incident.resolved')
+        await remediation.settleResolved(event.incident.id);
+    });
     const logger = this.app.container
       .resolve(loggingToken)
       .getLogger('monitoring');
@@ -91,6 +112,7 @@ export default class MonitoringProvider extends ServiceProvider<Application> {
         busy = true;
         try {
           await service.runDueChecks();
+          await remediation.verifyDue();
         } finally {
           busy = false;
         }
@@ -109,6 +131,7 @@ export default class MonitoringProvider extends ServiceProvider<Application> {
   }
 
   public override async shutdown(): Promise<void> {
+    this.stopListening?.();
     await this.executor?.shutdown();
   }
 }

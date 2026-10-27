@@ -46,6 +46,7 @@ export interface Service {
   groupName: string | null;
   repoUrl: string | null;
   runbook: string | null;
+  remediations: RemediationAction[] | null;
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
@@ -228,4 +229,67 @@ export function formatDuration(
   const hours = Math.floor(minutes / 60);
   if (hours < 48) return `${hours} h ${minutes % 60} min`;
   return `${Math.floor(hours / 24)} d ${hours % 24} h`;
+}
+
+export interface AiSettings {
+  enabled: boolean;
+  agentId: string | null;
+  actorUserId: string | null;
+  actorName: string | null;
+}
+
+/** An agent from the Agents plugin's roster (`GET /api/agents/available`). */
+export interface AvailableAgent {
+  id: string;
+  name: string;
+  goodAt: string;
+  tool: string | null;
+  model: string | null;
+  online: boolean;
+  personalOnly: boolean;
+  busy: number;
+}
+
+export interface RemediationAction {
+  key: string;
+  title: string;
+  description: string | null;
+  method: 'POST' | 'GET' | 'PUT';
+  url: string;
+  headers: Record<string, string> | null;
+  body: string | null;
+}
+
+export type RemediationStatus =
+  | 'pending'
+  | 'rejected'
+  | 'running'
+  | 'failed'
+  | 'verifying'
+  | 'verified'
+  | 'unverified';
+
+export interface Remediation {
+  id: string;
+  incidentId: string;
+  actionKey: string;
+  actionTitle: string;
+  reason: string;
+  status: RemediationStatus;
+  requestedByType: 'agent' | 'user';
+  requestedByName: string | null;
+  decidedByName: string | null;
+  decidedAt: string | null;
+  executedAt: string | null;
+  httpStatus: number | null;
+  output: string | null;
+  verifyAt: string | null;
+  verifiedAt: string | null;
+  createdAt: string;
+}
+
+export interface RemediationOptions {
+  level: RemediationLevel;
+  actions: Pick<RemediationAction, 'key' | 'title' | 'description'>[];
+  remediations: Remediation[];
 }

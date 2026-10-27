@@ -1,4 +1,24 @@
-import { Activity, Boxes, Globe, LayoutDashboard, Siren } from 'lucide-react';
+import {
+  agentsRoute,
+  modelsRoute,
+  runtimesRoute,
+  skillsRoute,
+  usageRoute,
+} from '@nocobase/app-plugin-agents/client/routes';
+import {
+  Activity,
+  Bot,
+  BotMessageSquare,
+  Boxes,
+  BrainCircuit,
+  ChartColumn,
+  Cpu,
+  Globe,
+  LayoutDashboard,
+  Server,
+  Siren,
+  Sparkles,
+} from 'lucide-react';
 import {
   defineAppRoutes,
   type AppClientRouteContribution,
@@ -89,6 +109,57 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
       order: 5,
     },
     path: '/status-pages',
+  },
+  {
+    auth: 'required',
+    authz: monitoringRead,
+    componentLoader: () => import('./pages/ai/index.js'),
+    name: 'aiDiagnosis',
+    navigation: { title: 'monitoring.navigation.ai', icon: Sparkles, order: 6 },
+    path: '/ai',
+  },
+  {
+    // The Agents plugin's pages, routed here: the agents that diagnose, the runtimes they run on, their skills, what
+    // they cost, and the model services. Each keeps the page grant the plugin names it by.
+    name: 'agentManagement',
+    navigation: {
+      title: 'monitoring.navigation.agentManagement',
+      icon: Bot,
+      order: 50,
+    },
+    children: [
+      {
+        ...agentsRoute,
+        navigation: {
+          title: 'monitoring.navigation.agents',
+          icon: BotMessageSquare,
+        },
+        breadcrumb: { title: 'monitoring.navigation.agents' },
+      },
+      {
+        ...runtimesRoute,
+        navigation: { title: 'monitoring.navigation.runtimes', icon: Server },
+        breadcrumb: { title: 'monitoring.navigation.runtimes' },
+      },
+      {
+        ...skillsRoute,
+        navigation: {
+          title: 'monitoring.navigation.skills',
+          icon: BrainCircuit,
+        },
+        breadcrumb: { title: 'monitoring.navigation.skills' },
+      },
+      {
+        ...usageRoute,
+        navigation: { title: 'monitoring.navigation.usage', icon: ChartColumn },
+        breadcrumb: { title: 'monitoring.navigation.usage' },
+      },
+      {
+        ...modelsRoute,
+        navigation: { title: 'monitoring.navigation.models', icon: Cpu },
+        breadcrumb: { title: 'monitoring.navigation.models' },
+      },
+    ],
   },
   {
     // The public status page: anyone may read it, signed in or not, and it renders outside the shell.

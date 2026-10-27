@@ -7,6 +7,16 @@ const monitoringZhCN: typeof monitoringEnUS = {
     incidents: '事件',
     services: '服务',
     statusPages: '状态页',
+    ai: 'AI 诊断',
+    agentManagement: 'Agent 管理',
+    agents: 'Agents',
+    runtimes: '运行环境',
+    skills: '技能',
+    usage: '用量',
+    connectRuntime: '连接运行环境',
+    newSkill: '新建技能',
+    skill: '技能详情',
+    models: '模型',
   },
   authorization: {
     section: '监控',
@@ -230,6 +240,102 @@ const monitoringZhCN: typeof monitoringEnUS = {
       completed: '诊断完成',
       failed: '诊断未完成',
     },
+    diagnose: '用 AI 诊断',
+    diagnoseAgain: '重新诊断',
+    requested: 'Agent 将开始调查',
+    settings: {
+      title: 'AI 诊断',
+      description:
+        '监控项宕机时，Agent 会调查原因并记录在事件上；在你允许的范围内执行修复，再由探测确认是否恢复。',
+      steps: {
+        detect: {
+          title: '发现',
+          description: '各区域的探测定时检查每个服务，连续失败即创建事件。',
+        },
+        diagnose: {
+          title: '诊断',
+          description:
+            'Agent 阅读检查记录、对比各区域、重新探测并查看服务代码，然后记录根本原因。',
+        },
+        remediate: {
+          title: '修复',
+          description:
+            '按监控项设置：仅诊断、建议、审批后修复或自动修复——始终只能是服务白名单内的操作。',
+        },
+        verify: {
+          title: '验证',
+          description:
+            '由探测而不是 Agent 判断是否修复成功；无效的修复会升级给人处理。',
+        },
+      },
+      agentTitle: '诊断 Agent',
+      agent: 'Agent',
+      chooseAgent: '选择 Agent',
+      unavailableAgent: '已配置的 Agent（已不再上报）',
+      online: '在线',
+      offline: '没有在线的运行环境',
+      busy: '{{count}} 个运行中',
+      runsAs: '自动诊断以保存此设置的 {{name}} 的身份运行。',
+      runsAsYou: '保存后，自动诊断将以你的身份运行。',
+      auto: '自动诊断新事件',
+      autoHint:
+        '对开启了 AI 诊断的监控项生效。关闭后，仍可在事件页手动请求诊断。',
+      saved: 'AI 设置已保存',
+      noAgents: '还没有 Agent',
+      noAgentsHint:
+        'Agent 运行在运行环境上：一台已登录 Claude Code 或 Codex 的机器。先连接运行环境，再为它启用 Agent。',
+      connectRuntime: '连接运行环境',
+      openAgents: 'Agents',
+      manageRuntimes: '管理运行环境',
+      safetyTitle: '安全护栏',
+      safety: {
+        readOnly:
+          '诊断运行是只读的：服务代码仓库以无推送权限检出，不会提交任何内容。',
+        whitelist:
+          'Agent 只能申请服务定义的修复操作，由 NocoMonitor 发起调用，而不是 Agent。',
+        tiers:
+          '每个监控项决定 Agent 能走多远：仅诊断、建议、审批后修复或自动修复。',
+        verify:
+          '修复后由探测验证是否恢复；若服务仍失败，事件回到“调查中”交给人处理。',
+        runner: '运行环境不是沙箱：请在专用机器或虚拟机上运行。',
+      },
+    },
+  },
+  fixes: {
+    title: '修复',
+    available: '执行修复',
+    approve: '批准并执行',
+    reject: '拒绝',
+    approved: '已批准修复',
+    rejected: '已拒绝修复',
+    run: '执行修复',
+    running: '执行中…',
+    runTitle: '执行“{{title}}”？',
+    runDescription:
+      'NocoMonitor 会立即发起已配置的调用，随后由探测验证服务是否恢复。',
+    reason: '原因',
+    requestedBy: { agent: 'Agent {{name}} 申请', user: '{{name}} 执行' },
+    status: {
+      pending: '等待审批',
+      rejected: '已拒绝',
+      running: '执行中',
+      failed: '失败',
+      verifying: '已执行，验证中',
+      verified: '已验证',
+      unverified: '未见效',
+    },
+  },
+  agents: {
+    subject: '事件',
+    group: '事件',
+    read: '读取事件',
+    readDescription: '读取运行所诊断的事件，并重新探测其监控项。',
+    diagnose: '记录诊断',
+    diagnoseDescription: '在事件上记录根本原因、置信度和建议操作。',
+    remediate: '申请修复',
+    remediateDescription: '在监控项的修复级别内，申请服务的某个修复操作。',
+    triggerOpened: '事件创建',
+    triggerManual: '人工请求',
   },
   services: {
     title: '服务',
@@ -245,6 +351,16 @@ const monitoringZhCN: typeof monitoringEnUS = {
     deleteConfirm: '删除 {{name}}？',
     deleted: '服务已删除',
     hasMonitors: '请先删除它的监控项',
+    fixes: '修复操作',
+    fixesHint:
+      '固定的 HTTP 调用（部署钩子、重启接口等），Agent 可以申请、运维人员可以执行。Agent 只能指定标识，看不到 URL 和请求头的值。',
+    fixKey: '标识',
+    fixDescriptionPlaceholder: '什么情况下这个修复有用，供 Agent 判断',
+    fixHeaders: '请求头',
+    fixHeadersHint:
+      '每行一个“名称: 值”。已保存的值会被遮盖，保持遮盖即可保留原值。',
+    addFix: '添加修复操作',
+    removeFix: '移除',
   },
   statusPages: {
     title: '状态页',

@@ -40,7 +40,13 @@ import { Skeleton } from '#components/ui/skeleton';
 import { Textarea } from '#components/ui/textarea';
 
 import { useApiData } from '../../hooks/use-api-data.js';
-import type { List, Monitor, Service } from '../../lib/monitoring.js';
+import type {
+  List,
+  Monitor,
+  RemediationAction,
+  Service,
+} from '../../lib/monitoring.js';
+import { RemediationActionsEditor } from './remediation-actions.js';
 import { LoadError, StatusDot } from '../monitoring/components.js';
 import { errorText, fieldErrorsOf, useCanManage } from '../monitoring/utils.js';
 
@@ -215,6 +221,9 @@ function ServiceFormDialog({
     repoUrl: service?.repoUrl ?? '',
     runbook: service?.runbook ?? '',
   });
+  const [actions, setActions] = useState<RemediationAction[]>(
+    service?.remediations ?? [],
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const set = (key: keyof typeof draft, value: string): void =>
@@ -230,6 +239,7 @@ function ServiceFormDialog({
       groupName: draft.groupName.trim() || null,
       repoUrl: draft.repoUrl.trim() || null,
       runbook: draft.runbook.trim() || null,
+      remediations: actions.length ? actions : null,
     };
     try {
       await api.request(
@@ -319,6 +329,11 @@ function ServiceFormDialog({
                 {t('monitoring.services.runbookHint')}
               </FieldDescription>
             </Field>
+            <RemediationActionsEditor
+              actions={actions}
+              onChange={setActions}
+              error={errors.remediations}
+            />
           </FieldGroup>
           <DialogFooter>
             <Button type='button' variant='outline' onClick={onClose}>

@@ -5,7 +5,6 @@ import {
 } from '@nocobase/app-client/plugins';
 import { describe, expect, it } from 'vitest';
 
-import systemSettingsRoutes from '../../client/pages/settings/routes.js';
 import applicationRoutes from '../../client/routes.ts';
 
 describe('app client routes', () => {
@@ -63,10 +62,20 @@ describe('app client routes', () => {
         'incident',
         'services',
         'statusPages',
+        'aiDiagnosis',
       ].map((name) => ({
         name,
         authorizedAs: 'settings:monitoring',
       })),
+      // The Agents plugin's pages keep the grants the plugin declares for them.
+      { name: 'agents', authorizedAs: 'agents' },
+      { name: 'runtimes', authorizedAs: 'runtimes' },
+      { name: 'runtimes-connect', authorizedAs: 'runtimes' },
+      { name: 'skills', authorizedAs: 'skills' },
+      { name: 'skills-new', authorizedAs: 'skills' },
+      { name: 'skills-detail', authorizedAs: 'skills' },
+      { name: 'usage', authorizedAs: 'usage' },
+      { name: 'models', authorizedAs: 'settings:agents.services' },
       { name: 'settingsUsers', authorizedAs: 'user:*' },
       { name: 'settingsUserCreate', authorizedAs: 'user:*' },
       { name: 'settingsUser', authorizedAs: 'user:*' },
