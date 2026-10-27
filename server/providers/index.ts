@@ -1,5 +1,11 @@
 import type { ApplicationServiceProviderConstructor } from '@nocobase/app-server/application';
 
-const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [];
+import MonitoringProvider from './monitoring.js';
+
+export { monitoringServiceToken } from './monitoring.js';
+
+const serviceProviders: readonly ApplicationServiceProviderConstructor[] = [
+  MonitoringProvider,
+];
 
 export default serviceProviders;
