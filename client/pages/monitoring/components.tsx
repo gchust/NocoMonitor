@@ -4,7 +4,7 @@ import { CircleAlertIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
 import { StatusBadge } from '#components/status-badge';
-import { Alert, AlertDescription, AlertTitle } from '#components/ui/alert';
+import { Alert, AlertTitle } from '#components/ui/alert';
 import { Badge } from '#components/ui/badge';
 import { Button } from '#components/ui/button';
 import {
@@ -261,16 +261,20 @@ export function LoadError({
   return (
     <Alert variant='destructive'>
       <CircleAlertIcon />
-      <AlertTitle>
+      {/* The translated title is the message; the server's own words, often English, stay in the tooltip. */}
+      <AlertTitle
+        title={
+          error instanceof Error && !forbidden && !notFound
+            ? error.message
+            : undefined
+        }
+      >
         {forbidden
           ? t('monitoring.errors.forbidden')
           : notFound
             ? t('monitoring.errors.notFound')
             : t('monitoring.errors.load')}
       </AlertTitle>
-      {error instanceof Error && !forbidden && !notFound ? (
-        <AlertDescription>{error.message}</AlertDescription>
-      ) : null}
       {onRetry && !forbidden && !notFound ? (
         <Button
           variant='outline'

@@ -2,6 +2,7 @@ import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 import type { FilterBuilder } from '@nocobase/repository-input';
 import type { IdGeneratorService } from '@nocobase/snowflake';
 
+import { ENGLISH_WORDING, type IncidentWording } from './language.js';
 import { probe } from './probe.js';
 import type {
   Actor,
@@ -16,6 +17,7 @@ import type {
   MonitorRecord,
   MonitorStatus,
   ProbeResult,
+  RemediationRecord,
   ServiceRecord,
   StatusPageRecord,
 } from './types.js';
@@ -35,6 +37,12 @@ export type MonitoringEvent =
       monitor: MonitorRecord | null;
     }
   | { type: 'incident.resolved'; incident: IncidentRecord }
+  | { type: 'diagnosis.failed'; incident: IncidentRecord }
+  | {
+      type: 'remediation.awaitingApproval' | 'remediation.notRecovered';
+      incident: IncidentRecord;
+      remediation: RemediationRecord;
+    }
   | {
       type: 'monitor.statusChanged';
       monitor: MonitorRecord;
@@ -157,11 +165,19 @@ export class MonitoringService {
     private readonly ids: IdGeneratorService,
     private readonly logger: MonitoringLogger,
     private readonly fetchImpl: typeof fetch = fetch,
+    /** The words of an incident the probes open, in the operators' language; read only when a check fails. */
+    private readonly wording: () => Promise<IncidentWording> = () =>
+      Promise.resolve(ENGLISH_WORDING),
   ) {}
 
   on(listener: MonitoringListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Tells the listeners about something another service did to an incident, such as a fix waiting for approval. */
+  announce(event: MonitoringEvent): void {
+    this.emit(event);
   }
 
   private emit(event: MonitoringEvent): void {
@@ -260,6 +276,9 @@ export class MonitoringService {
     checkedAt: Date,
   ): Promise<CheckOutcome | null> {
     const events: MonitoringEvent[] = [];
+    // Read before the transaction, and only when this check could open an incident.
+    const wording =
+      result.status === 'down' ? await this.wording() : ENGLISH_WORDING;
     const outcome = await this.db.transaction(async (conn) => {
       const monitors = conn.repository<MonitorRecord>('mnMonitors');
       const monitor = await monitors.findOne({ filter: { id: monitorId } });
@@ -314,10 +333,10 @@ export class MonitoringService {
           openedIncident = await this.createIncident(conn, {
             serviceId: monitor.serviceId,
             monitorId,
-            title: `${monitor.name} is down`,
+            title: wording.downTitle(monitor.name),
             severity: 'major',
             source: 'auto',
-            body: `Automatically detected: ${result.error ?? 'the check failed'} (${next.consecutiveFailures} consecutive failures).`,
+            body: wording.detected(result.error, next.consecutiveFailures),
             actor: SYSTEM,
             startedAt: checkedAt,
           });
@@ -661,10 +680,14 @@ export class MonitoringService {
     incidentId: string,
     values: Partial<Pick<IncidentRecord, 'aiState' | 'aiRunId'>>,
   ) {
-    await this.db.repository<IncidentRecord>('mnIncidents').updateOne({
-      filter: { id: incidentId },
-      values: { ...values, aiUpdatedAt: new Date(), updatedAt: new Date() },
-    });
+    const { record } = await this.db
+      .repository<IncidentRecord>('mnIncidents')
+      .updateOne({
+        filter: { id: incidentId },
+        values: { ...values, aiUpdatedAt: new Date(), updatedAt: new Date() },
+      });
+    if (values.aiState === 'failed' && record)
+      this.emit({ type: 'diagnosis.failed', incident: record });
   }
 
   // ---------------------------------------------------------------------------------------------------------------

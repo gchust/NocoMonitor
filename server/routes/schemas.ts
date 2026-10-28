@@ -1,8 +1,12 @@
 import { z } from 'zod';
 
+import { DIAGNOSIS_LANGUAGES } from '../monitoring/language.js';
+import { ALERT_EVENTS } from '../monitoring/types.js';
+
 const Id = z.string().min(1).max(64);
 const Time = z.iso.datetime();
 const NullableTime = Time.nullable();
+const DiagnosisLanguageSchema = z.enum(DIAGNOSIS_LANGUAGES);
 
 export const MonitorStatusSchema = z.enum([
   'pending',
@@ -438,13 +442,91 @@ export const AiSettingsSchema = z
     agentId: z.string().nullable(),
     actorUserId: z.string().nullable(),
     actorName: z.string().nullable(),
+    language: DiagnosisLanguageSchema.nullable(),
   })
   .meta({ ref: 'NocoMonitorAiSettings' });
 
 export const AiSettingsInputSchema = z.strictObject({
   enabled: z.boolean(),
   agentId: z.string().min(1).max(128).nullable(),
+  /** Null, or left out, follows the application's default locale. */
+  language: DiagnosisLanguageSchema.nullable().default(null),
 });
+
+export const BriefingQuery = z.object({
+  days: z.coerce.number().int().min(1).max(30).default(7),
+});
+
+export const BriefingSchema = z
+  .object({
+    since: Time,
+    agent: z.object({
+      configured: z.boolean(),
+      enabled: z.boolean(),
+      name: z.string().nullable(),
+      tool: z.string().nullable(),
+      model: z.string().nullable(),
+      online: z.boolean().nullable(),
+      busy: z.number().int(),
+    }),
+    stats: z.object({
+      incidents: z.number().int(),
+      diagnosed: z.number().int(),
+      medianTimeToDiagnosisMs: z.number().nullable(),
+      fixesRequested: z.number().int(),
+      fixesVerified: z.number().int(),
+      needsYou: z.number().int(),
+    }),
+    needsYou: z.array(
+      z.object({
+        kind: z.enum(['approval', 'diagnosisFailed']),
+        incidentId: z.string(),
+        incidentTitle: z.string(),
+        at: Time,
+        actionTitle: z.string().nullable(),
+      }),
+    ),
+    pendingFixes: z.array(
+      z.object({ incidentId: z.string(), actionTitle: z.string() }),
+    ),
+    feed: z.array(
+      z.object({
+        id: z.string(),
+        kind: z.enum(['diagnosis', 'remediation']),
+        authorType: z.enum(['system', 'user', 'agent']),
+        incidentId: z.string(),
+        incidentTitle: z.string(),
+        at: Time,
+        text: z.string(),
+      }),
+    ),
+  })
+  .meta({ ref: 'NocoMonitorAiBriefing' });
+
+export const InvestigationActivitySchema = z
+  .object({
+    runId: z.string().nullable(),
+    status: z.enum(['none', 'queued', 'running', 'completed', 'failed']),
+    startedAt: NullableTime,
+    finishedAt: NullableTime,
+    model: z.string().nullable(),
+    steps: z.array(
+      z.object({
+        seq: z.number().int(),
+        at: Time,
+        kind: z.enum([
+          'context',
+          'probe',
+          'request',
+          'code',
+          'diagnose',
+          'remediate',
+          'command',
+        ]),
+      }),
+    ),
+  })
+  .meta({ ref: 'NocoMonitorInvestigationActivity' });
 
 export const RemediationSchema = z
   .object({
@@ -529,3 +611,104 @@ export const ProbeResultSchema = z.object({
   error: z.string().nullable(),
   details: z.record(z.string(), z.unknown()).nullable(),
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Drill and alert notifications
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const DrillSchema = z
+  .object({
+    state: z.enum(['idle', 'running', 'recovered']),
+    serviceId: Id.nullable(),
+    monitorId: Id.nullable(),
+    incidentId: Id.nullable(),
+    startedAt: NullableTime,
+    detectedAt: NullableTime,
+    aiState: z
+      .enum(['none', 'queued', 'running', 'completed', 'failed'])
+      .nullable(),
+    diagnosedAt: NullableTime,
+    fix: z
+      .object({
+        status: z.enum([
+          'pending',
+          'rejected',
+          'running',
+          'failed',
+          'verifying',
+          'verified',
+          'unverified',
+        ]),
+        requestedAt: Time,
+        actionTitle: z.string(),
+      })
+      .nullable(),
+    recoveredAt: NullableTime,
+    targetUnreachable: z.boolean(),
+    targetUrl: z.string().nullable(),
+    completedOnce: z.boolean(),
+  })
+  .meta({ ref: 'NocoMonitorDrill' });
+
+export const DrillTargetParams = z.object({ token: z.string().min(1).max(64) });
+
+export const AlertEventSchema = z.enum(ALERT_EVENTS);
+
+export const AlertSettingsInputSchema = z.strictObject({
+  recipients: z.array(Id).max(100),
+  channels: z.array(z.string().min(1).max(64)).max(20),
+  events: z.strictObject(
+    Object.fromEntries(ALERT_EVENTS.map((event) => [event, z.boolean()])) as {
+      [K in (typeof ALERT_EVENTS)[number]]: z.ZodBoolean;
+    },
+  ),
+});
+
+const AlertRecipientSchema = z.object({
+  id: Id,
+  name: z.string(),
+  email: z.string().nullable(),
+});
+
+export const AlertSettingsSchema = z
+  .object({
+    recipients: z.array(AlertRecipientSchema),
+    channels: z.array(z.string()),
+    events: AlertSettingsInputSchema.shape.events,
+    available: z.array(
+      z.object({
+        name: z.string(),
+        type: z.string(),
+        kind: z.enum(['inApp', 'email', 'webhook', 'unsupported']),
+      }),
+    ),
+  })
+  .meta({ ref: 'NocoMonitorAlertSettings' });
+
+export const AlertRecipientQuery = z.object({
+  q: z.string().max(100).default(''),
+});
+
+export const AlertRecipientsSchema = z.array(AlertRecipientSchema);
+
+const AlertDeliveryStatusSchema = z.enum([
+  'pending',
+  'delivered',
+  'partial',
+  'failed',
+  'unknown',
+]);
+
+export const AlertDeliverySchema = z
+  .object({
+    key: z.string(),
+    event: z.union([AlertEventSchema, z.literal('test')]),
+    incidentId: Id.nullable(),
+    title: z.string(),
+    at: Time,
+    status: AlertDeliveryStatusSchema,
+    channels: z.array(
+      z.object({ name: z.string(), status: AlertDeliveryStatusSchema }),
+    ),
+  })
+  .meta({ ref: 'NocoMonitorAlertDelivery' });

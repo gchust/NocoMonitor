@@ -1,25 +1,23 @@
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
+import { CheckIcon, SparklesIcon, XIcon } from 'lucide-react';
 import {
-  BotIcon,
-  CircleCheckIcon,
-  InfoIcon,
-  MegaphoneIcon,
-  UserIcon,
-  WrenchIcon,
-  SparklesIcon,
-} from 'lucide-react';
-import { useId, useState, type FormEvent, type ReactElement } from 'react';
+  useId,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactElement,
+} from 'react';
 import { Link, useOutletContext, useParams } from 'react-router';
 
 import { BackButton } from '#components/back-button';
+import { LongText } from '#components/long-text';
 import { PageContainer } from '#components/page-container';
 import { RouteChildPage } from '#components/route-child-page';
 import { StatusBadge } from '#components/status-badge';
 import { Button } from '#components/ui/button';
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -36,7 +34,6 @@ import {
 import { Skeleton } from '#components/ui/skeleton';
 import { Spinner } from '#components/ui/spinner';
 import { Textarea } from '#components/ui/textarea';
-import { cn } from 'cn';
 
 import { useApiData } from '../../hooks/use-api-data.js';
 import {
@@ -47,8 +44,13 @@ import {
   type IncidentStatus,
   type IncidentUpdate,
   type Monitor,
+  type Remediation,
+  type RemediationOptions,
   type Service,
 } from '../../lib/monitoring.js';
+import { AiPipeline } from '../monitoring/ai-pipeline.js';
+import { usePipelineSteps } from '../monitoring/pipeline-steps.js';
+import { ApproveFixDialog } from '../monitoring/approve-fix-dialog.js';
 import {
   Fact,
   IncidentStatusBadge,
@@ -56,23 +58,19 @@ import {
   MonitorStatusBadge,
   SeverityBadge,
 } from '../monitoring/components.js';
-import { errorText, useCanManage } from '../monitoring/utils.js';
+import { errorText, fixErrorText, useCanManage } from '../monitoring/utils.js';
 import { SwitchField } from '../monitors/monitor-form.js';
 import type { IncidentsOutletContext } from './index.js';
+import { AiDiagnosisCard } from './ai-diagnosis-card.js';
+import { IncidentTimeline } from './incident-timeline.js';
 import { RemediationPanel } from './remediation-panel.js';
+import { useDiagnose, type Diagnose } from './use-diagnose.js';
 
 interface IncidentDetail {
   incident: Incident;
   service: Service | null;
   monitor: Monitor | null;
   updates: IncidentUpdate[];
-}
-
-export interface SuggestedAction {
-  title?: string;
-  description?: string;
-  risk?: string;
-  command?: string;
 }
 
 export default function IncidentDetailPage(): ReactElement {
@@ -87,10 +85,35 @@ export default function IncidentDetailPage(): ReactElement {
   const data = detail.data?.data;
   const incident = data?.incident;
 
+  // The fixes are read here, not in their panel: the automatic response card needs them too.
+  const fixes = useApiData<{ data: RemediationOptions }>(
+    `${path}/remediations`,
+    undefined,
+    { refreshMs: 10000 },
+  );
+  const fixOptions = fixes.data?.data;
+  const pendingFix = fixOptions?.remediations.find(
+    (item) => item.status === 'pending',
+  );
+  // The next step that waits on the viewer, which the response card offers as the page's primary action.
+  const nextStep =
+    !canManage || !incident || incident.status === 'resolved'
+      ? null
+      : pendingFix
+        ? 'approval'
+        : incident.aiState === 'none'
+          ? 'diagnose'
+          : incident.aiState === 'failed'
+            ? 'retry'
+            : null;
+
   const reload = (): void => {
     detail.reload();
+    fixes.reload();
     parent.reload();
   };
+  // One request at a time: both diagnose buttons share it and show it.
+  const diagnosis = useDiagnose(incidentId, reload);
 
   return (
     <RouteChildPage>
@@ -126,7 +149,7 @@ export default function IncidentDetailPage(): ReactElement {
               </h1>
             </header>
 
-            <dl className='grid grid-cols-2 gap-4 rounded-xl border p-4 md:grid-cols-4'>
+            <dl className='grid gap-4 rounded-xl border p-4 sm:grid-cols-2 md:grid-cols-4'>
               <Fact label={t('monitoring.fields.service')}>
                 {data.service?.name ?? '—'}
               </Fact>
@@ -158,26 +181,40 @@ export default function IncidentDetailPage(): ReactElement {
               </Fact>
             </dl>
 
+            <ResponseCard
+              incident={incident}
+              fixes={fixOptions}
+              pendingFix={pendingFix ?? null}
+              nextStep={nextStep}
+              diagnosis={diagnosis}
+              onChanged={reload}
+            />
+
             <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]'>
               <div className='space-y-6'>
-                <AiPanel
+                <AiDiagnosisCard
                   incident={incident}
                   canManage={canManage}
-                  onChanged={reload}
+                  diagnosis={diagnosis}
                 />
-                <RemediationPanel
-                  incidentId={incident.id}
-                  resolved={incident.status === 'resolved'}
-                  canManage={canManage}
-                  onChanged={reload}
-                />
-                <Timeline updates={data.updates} />
+                {fixOptions ? (
+                  <RemediationPanel
+                    incidentId={incident.id}
+                    data={fixOptions}
+                    resolved={incident.status === 'resolved'}
+                    canManage={canManage}
+                    onChanged={reload}
+                  />
+                ) : null}
+                <IncidentTimeline updates={data.updates} />
               </div>
               {canManage ? (
                 <aside className='space-y-6'>
                   <PostUpdate
                     incident={incident}
                     path={path}
+                    // One primary action per page: the response card's, while it offers one.
+                    secondary={nextStep !== null}
                     onSaved={reload}
                   />
                   <IncidentSettings
@@ -195,217 +232,144 @@ export default function IncidentDetailPage(): ReactElement {
   );
 }
 
-/** What the diagnosis agent concluded, or where it is with its work. */
-function AiPanel({
+/**
+ * Where the automatic response stands — detected, diagnosed, fixed, verified — and, for people who manage monitoring,
+ * the one step that waits on them: approving the fix the agent asked for, or asking for a diagnosis.
+ */
+function ResponseCard({
   incident,
-  canManage,
+  fixes,
+  pendingFix,
+  nextStep,
+  diagnosis,
   onChanged,
 }: {
   readonly incident: Incident;
-  readonly canManage: boolean;
+  readonly fixes: RemediationOptions | undefined;
+  readonly pendingFix: Remediation | null;
+  readonly nextStep: 'approval' | 'diagnose' | 'retry' | null;
+  readonly diagnosis: Diagnose;
   readonly onChanged: () => void;
 }): ReactElement {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const api = useApiClient();
   const toaster = useToaster();
-  const [asking, setAsking] = useState(false);
-  const diagnose = async (): Promise<void> => {
-    setAsking(true);
+  const { diagnose, asking } = diagnosis;
+  const [approving, setApproving] = useState<Remediation | null>(null);
+  const [rejecting, setRejecting] = useState(false);
+  // Deciding a fix removes the buttons that were focused: focus returns to this card, not to the page.
+  const cardRef = useRef<HTMLDivElement>(null);
+  const steps = usePipelineSteps({
+    incident,
+    remediations: fixes?.remediations,
+    level: fixes?.level,
+  });
+
+  const reject = async (remediation: Remediation): Promise<void> => {
+    setRejecting(true);
     try {
       await api.request({
-        path: `incidents/${encodeURIComponent(incident.id)}/diagnose`,
+        path: `remediations/${encodeURIComponent(remediation.id)}/reject`,
         method: 'POST',
+        json: {},
       });
-      toaster.show({ type: 'success', title: t('monitoring.ai.requested') });
-      onChanged();
+      toaster.show({ type: 'success', title: t('monitoring.fixes.rejected') });
+      cardRef.current?.focus();
     } catch (error) {
-      toaster.show({
-        type: 'error',
-        title: errorText(error, t('monitoring.errors.save')),
-      });
+      toaster.show({ type: 'error', title: fixErrorText(error, t) });
     } finally {
-      setAsking(false);
+      setRejecting(false);
+      onChanged();
     }
   };
-  const working =
-    incident.aiState === 'queued' || incident.aiState === 'running';
-  const actions = (incident.aiSuggestedActions ?? []).filter(
-    (action): action is SuggestedAction =>
-      Boolean(action) && typeof action === 'object',
-  );
+
   return (
-    <Card className='ring-primary/20'>
+    <Card ref={cardRef} tabIndex={-1} className='outline-none'>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
-          <BotIcon className='size-5 text-primary' />
-          {t('monitoring.ai.title')}
-          {working ? <Spinner className='size-4' /> : null}
-          {incident.aiConfidence ? (
-            <StatusBadge tone='info' size='sm'>
-              {t('monitoring.ai.confidence', {
-                level: t(`monitoring.ai.level.${incident.aiConfidence}`, {
-                  defaultValue: incident.aiConfidence,
-                }),
-              })}
-            </StatusBadge>
-          ) : null}
+          <SparklesIcon className='size-5 text-primary' />
+          {t('monitoring.pipeline.title')}
         </CardTitle>
         <CardDescription>
-          {incident.aiUpdatedAt
-            ? t('monitoring.ai.updated', {
-                when: formatDateTime(incident.aiUpdatedAt, i18n.language),
-              })
-            : t(`monitoring.ai.state.${incident.aiState}`)}
+          {t('monitoring.pipeline.description')}
         </CardDescription>
-        {canManage ? (
-          <CardAction>
-            <Button
-              size='sm'
-              variant='outline'
-              disabled={asking || working}
-              onClick={() => void diagnose()}
-            >
-              <SparklesIcon data-icon='inline-start' />
-              {incident.aiState === 'none'
-                ? t('monitoring.ai.diagnose')
-                : t('monitoring.ai.diagnoseAgain')}
-            </Button>
-          </CardAction>
-        ) : null}
       </CardHeader>
-      <CardContent className='space-y-4 text-sm'>
-        {incident.aiSummary ? (
-          <p className='leading-6'>{incident.aiSummary}</p>
-        ) : null}
-        {incident.aiRootCause ? (
-          <div>
-            <h3 className='mb-1 font-medium'>{t('monitoring.ai.rootCause')}</h3>
-            <p className='leading-6 whitespace-pre-wrap text-muted-foreground'>
-              {incident.aiRootCause}
-            </p>
+      <CardContent className='flex flex-col gap-4'>
+        <AiPipeline steps={steps} />
+        {nextStep ? (
+          <div className='flex flex-col gap-3 rounded-lg border border-(--status-warning)/25 bg-(--status-warning-background) p-4 sm:flex-row sm:items-center'>
+            <div className='min-w-0 flex-1 text-sm'>
+              {nextStep === 'approval' && pendingFix ? (
+                <>
+                  <p className='font-medium'>
+                    {t('monitoring.pipeline.next.approval', {
+                      action: pendingFix.actionTitle,
+                    })}
+                  </p>
+                  <LongText className='mt-1 text-muted-foreground'>
+                    {pendingFix.reason}
+                  </LongText>
+                </>
+              ) : (
+                <p className='font-medium'>
+                  {t(`monitoring.pipeline.next.${nextStep}`)}
+                </p>
+              )}
+            </div>
+            <div className='flex shrink-0 flex-wrap gap-2'>
+              {nextStep === 'approval' && pendingFix ? (
+                <>
+                  <Button
+                    variant='outline'
+                    disabled={rejecting}
+                    onClick={() => void reject(pendingFix)}
+                  >
+                    <XIcon data-icon='inline-start' />
+                    {t('monitoring.fixes.reject')}
+                  </Button>
+                  <Button
+                    disabled={rejecting}
+                    onClick={() => setApproving(pendingFix)}
+                  >
+                    <CheckIcon data-icon='inline-start' />
+                    {t('monitoring.fixes.approve')}
+                  </Button>
+                </>
+              ) : (
+                <Button disabled={asking} onClick={() => void diagnose()}>
+                  {asking ? (
+                    <Spinner data-icon='inline-start' />
+                  ) : (
+                    <SparklesIcon data-icon='inline-start' />
+                  )}
+                  {nextStep === 'retry'
+                    ? t('monitoring.ai.diagnoseAgain')
+                    : t('monitoring.ai.diagnose')}
+                </Button>
+              )}
+            </div>
           </div>
-        ) : null}
-        {actions.length ? (
-          <div>
-            <h3 className='mb-2 font-medium'>
-              {t('monitoring.ai.suggestedActions')}
-            </h3>
-            <ol className='space-y-2'>
-              {actions.map((action, index) => (
-                <li
-                  key={JSON.stringify(action)}
-                  className='rounded-lg border p-3'
-                >
-                  <div className='flex flex-wrap items-center gap-2'>
-                    <WrenchIcon className='size-4 text-muted-foreground' />
-                    <span className='font-medium'>
-                      {action.title ??
-                        t('monitoring.ai.step', { index: index + 1 })}
-                    </span>
-                    {action.risk ? (
-                      <StatusBadge
-                        tone={action.risk === 'low' ? 'success' : 'warning'}
-                        size='sm'
-                      >
-                        {t('monitoring.ai.risk', {
-                          level: t(`monitoring.ai.level.${action.risk}`, {
-                            defaultValue: action.risk,
-                          }),
-                        })}
-                      </StatusBadge>
-                    ) : null}
-                  </div>
-                  {action.description ? (
-                    <p className='mt-1 text-muted-foreground'>
-                      {action.description}
-                    </p>
-                  ) : null}
-                  {action.command ? (
-                    <pre className='mt-2 overflow-x-auto rounded bg-muted px-2 py-1 font-mono text-xs'>
-                      {action.command}
-                    </pre>
-                  ) : null}
-                </li>
-              ))}
-            </ol>
-          </div>
-        ) : null}
-        {!incident.aiSummary && !working ? (
-          <p className='text-muted-foreground'>{t('monitoring.ai.noneYet')}</p>
         ) : null}
       </CardContent>
+      <ApproveFixDialog
+        remediation={approving}
+        onClose={() => setApproving(null)}
+        onDone={onChanged}
+        approvedFocus={cardRef}
+      />
     </Card>
-  );
-}
-
-const UPDATE_ICON = {
-  status: MegaphoneIcon,
-  note: InfoIcon,
-  diagnosis: BotIcon,
-  remediation: WrenchIcon,
-  system: CircleCheckIcon,
-};
-
-function Timeline({
-  updates,
-}: {
-  readonly updates: readonly IncidentUpdate[];
-}): ReactElement {
-  const { t, i18n } = useTranslation();
-  const ordered = [...updates].reverse();
-  return (
-    <section aria-labelledby='incident-timeline' className='space-y-3'>
-      <h2 id='incident-timeline' className='text-base font-medium'>
-        {t('monitoring.incidents.timeline')}
-      </h2>
-      <ol className='relative space-y-5 border-l pl-6'>
-        {ordered.map((update) => {
-          const Icon =
-            update.authorType === 'user' ? UserIcon : UPDATE_ICON[update.kind];
-          return (
-            <li key={update.id} className='relative'>
-              <span
-                className={cn(
-                  'absolute top-0.5 -left-[2.15rem] flex size-6 items-center justify-center rounded-full border bg-background',
-                  update.authorType === 'agent' &&
-                    'border-primary/40 text-primary',
-                )}
-              >
-                <Icon className='size-3.5' />
-              </span>
-              <div className='flex flex-wrap items-center gap-2 text-xs text-muted-foreground'>
-                {update.status ? (
-                  <IncidentStatusBadge status={update.status} />
-                ) : null}
-                <span className='font-medium text-foreground'>
-                  {update.authorName ??
-                    t(`monitoring.incidents.author.${update.authorType}`)}
-                </span>
-                <span>{formatDateTime(update.createdAt, i18n.language)}</span>
-                {update.publicVisible ? (
-                  <StatusBadge tone='info' size='sm'>
-                    {t('monitoring.incidents.public')}
-                  </StatusBadge>
-                ) : null}
-              </div>
-              <p className='mt-1 text-sm leading-6 whitespace-pre-wrap'>
-                {update.body}
-              </p>
-            </li>
-          );
-        })}
-      </ol>
-    </section>
   );
 }
 
 function PostUpdate({
   incident,
   path,
+  secondary,
   onSaved,
 }: {
   readonly incident: Incident;
   readonly path: string;
+  readonly secondary: boolean;
   readonly onSaved: () => void;
 }): ReactElement {
   const { t } = useTranslation();
@@ -503,6 +467,7 @@ function PostUpdate({
           </FieldGroup>
           <Button
             type='submit'
+            variant={secondary ? 'outline' : 'default'}
             className='w-full'
             disabled={busy || !body.trim()}
           >

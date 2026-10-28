@@ -1,5 +1,7 @@
 /** Records of NocoMonitor's own tables, as the Repository returns them. */
 
+import type { DiagnosisLanguage } from './language.js';
+
 export type MonitorType = 'http' | 'keyword' | 'json';
 export type CheckStatus = 'up' | 'degraded' | 'down';
 export type MonitorStatus = CheckStatus | 'pending' | 'paused';
@@ -78,6 +80,39 @@ export type AiSettings = {
   agentId: string | null;
   actorUserId: string | null;
   actorName: string | null;
+  /** What diagnoses and opened incidents are written in; null follows the application's default locale. */
+  language: DiagnosisLanguage | null;
+};
+
+/** The events alert notifications can be sent for. */
+export const ALERT_EVENTS = [
+  'incidentOpened',
+  'fixAwaitingApproval',
+  'diagnosisFailed',
+  'fixNotRecovered',
+  'incidentResolved',
+] as const;
+export type AlertEvent = (typeof ALERT_EVENTS)[number];
+
+/** Who is told what, through which configured notification channels. */
+export type AlertSettings = {
+  /** Application user ids, chosen one by one: nobody is notified by role or by default. */
+  recipients: string[];
+  /** Names of channels in `notification.channels`. */
+  channels: string[];
+  events: Record<AlertEvent, boolean>;
+};
+
+/** The drill: a test service whose health check NocoMonitor serves itself and makes fail. */
+export type DrillSettings = {
+  /** Present while a drill exists; guards the drill target's public URLs. */
+  token: string | null;
+  serviceId: string | null;
+  monitorId: string | null;
+  healthy: boolean;
+  startedAt: string | null;
+  /** Whether a drill ever recovered: the third step of getting started. */
+  completedOnce: boolean;
 };
 
 export interface MonitorRecord {

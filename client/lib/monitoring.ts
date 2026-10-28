@@ -243,11 +243,74 @@ export function formatDuration(
   return `${unit(Math.floor(hours / 24), 'day', locale)} ${unit(hours % 24, 'hour', locale)}`;
 }
 
+export type DiagnosisLanguage = 'en-US' | 'zh-CN';
+
 export interface AiSettings {
   enabled: boolean;
   agentId: string | null;
   actorUserId: string | null;
   actorName: string | null;
+  /** Null follows the application's default locale. */
+  language: DiagnosisLanguage | null;
+}
+
+/** What the AI did lately and what waits on people (`GET /api/monitoringAi/briefing`). */
+export interface AiBriefing {
+  since: string;
+  agent: {
+    configured: boolean;
+    enabled: boolean;
+    name: string | null;
+    tool: string | null;
+    model: string | null;
+    online: boolean | null;
+    busy: number;
+  };
+  stats: {
+    incidents: number;
+    diagnosed: number;
+    medianTimeToDiagnosisMs: number | null;
+    fixesRequested: number;
+    fixesVerified: number;
+    needsYou: number;
+  };
+  needsYou: {
+    kind: 'approval' | 'diagnosisFailed';
+    incidentId: string;
+    incidentTitle: string;
+    at: string;
+    actionTitle: string | null;
+  }[];
+  /** Every fix waiting for approval on an open incident, uncapped. */
+  pendingFixes: { incidentId: string; actionTitle: string }[];
+  feed: {
+    id: string;
+    kind: 'diagnosis' | 'remediation';
+    authorType: 'system' | 'user' | 'agent';
+    incidentId: string;
+    incidentTitle: string;
+    at: string;
+    text: string;
+  }[];
+}
+
+export type InvestigationStepKind =
+  | 'context'
+  | 'probe'
+  | 'request'
+  | 'code'
+  | 'diagnose'
+  | 'remediate'
+  | 'command';
+
+/** The classified steps of an incident's latest diagnosis run (`GET /api/incidents/:id/aiActivity`). */
+export interface InvestigationActivity {
+  runId: string | null;
+  status: AiState;
+  startedAt: string | null;
+  finishedAt: string | null;
+  model: string | null;
+  steps: { seq: number; at: string; kind: InvestigationStepKind }[];
 }
 
 /** An agent from the Agents plugin's roster (`GET /api/agents/available`). */
@@ -304,4 +367,66 @@ export interface RemediationOptions {
   level: RemediationLevel;
   actions: Pick<RemediationAction, 'key' | 'title' | 'description'>[];
   remediations: Remediation[];
+}
+
+/** The drill and how far its automatic response got. */
+export interface DrillStatus {
+  state: 'idle' | 'running' | 'recovered';
+  serviceId: string | null;
+  monitorId: string | null;
+  incidentId: string | null;
+  startedAt: string | null;
+  detectedAt: string | null;
+  aiState: AiState | null;
+  diagnosedAt: string | null;
+  fix: {
+    status: RemediationStatus;
+    requestedAt: string;
+    actionTitle: string;
+  } | null;
+  recoveredAt: string | null;
+  targetUnreachable: boolean;
+  targetUrl: string | null;
+  completedOnce: boolean;
+}
+
+export const ALERT_EVENTS = [
+  'incidentOpened',
+  'fixAwaitingApproval',
+  'diagnosisFailed',
+  'fixNotRecovered',
+  'incidentResolved',
+] as const;
+export type AlertEvent = (typeof ALERT_EVENTS)[number];
+
+export interface AlertRecipient {
+  id: string;
+  name: string;
+  email: string | null;
+}
+
+export interface AlertChannel {
+  name: string;
+  type: string;
+  kind: 'inApp' | 'email' | 'webhook' | 'unsupported';
+}
+
+export interface AlertSettingsView {
+  recipients: AlertRecipient[];
+  channels: string[];
+  events: Record<AlertEvent, boolean>;
+  available: AlertChannel[];
+}
+
+export type AlertDeliveryStatus =
+  'pending' | 'delivered' | 'partial' | 'failed' | 'unknown';
+
+export interface AlertDelivery {
+  key: string;
+  event: AlertEvent | 'test';
+  incidentId: string | null;
+  title: string;
+  at: string;
+  status: AlertDeliveryStatus;
+  channels: { name: string; status: AlertDeliveryStatus }[];
 }

@@ -191,6 +191,8 @@ export const agentIncidentRoutes: AppApiRouteContribution<Application> =
         ...cliRoute({
           command: 'incident diagnose',
           action: INCIDENT_DIAGNOSE,
+          // `--content-file diagnosis.json` sends the whole diagnosis, as the agents' instructions say.
+          bodyFile: 'content-file',
           examples: ['incident diagnose --content-file diagnosis.json'],
         }),
       }),

@@ -1,4 +1,4 @@
-import type { DatabaseManager } from '@nocobase/db';
+import type { DatabaseConnection, DatabaseManager } from '@nocobase/db';
 
 import type { MonitoringLogger, MonitoringService } from './service.js';
 import type {
@@ -21,6 +21,7 @@ const DEFAULT_AI: AiSettings = {
   agentId: null,
   actorUserId: null,
   actorName: null,
+  language: null,
 };
 
 export class RemediationError extends Error {
@@ -63,8 +64,9 @@ export class RemediationService {
   // Settings
   // ---------------------------------------------------------------------------------------------------------------
 
-  async aiSettings(): Promise<AiSettings> {
-    const row = await this.db
+  /** Read on `conn` when the caller holds a transaction: on SQLite a second connection would wait for it forever. */
+  async aiSettings(conn?: DatabaseConnection): Promise<AiSettings> {
+    const row = await (conn ?? this.db)
       .repository<{ key: string; value: Partial<AiSettings> }>('mnSettings')
       .findOne({ filter: { key: 'ai' } });
     return { ...DEFAULT_AI, ...(row?.value ?? {}) };
@@ -213,7 +215,13 @@ export class RemediationService {
       actor: input.actor,
       kind: 'remediation',
     });
-    return runsNow ? this.execute(record, action) : record;
+    if (runsNow) return this.execute(record, action);
+    this.monitoring.announce({
+      type: 'remediation.awaitingApproval',
+      incident,
+      remediation: record,
+    });
+    return record;
   }
 
   async approve(id: string, actor: Actor): Promise<RemediationRecord> {
@@ -373,11 +381,17 @@ export class RemediationService {
         incident?.status === 'resolved' ||
         monitor?.status === 'up' ||
         monitor?.status === 'degraded';
-      await this.update(record.id, {
+      const settled = await this.update(record.id, {
         status: recovered ? 'verified' : 'unverified',
         verifiedAt: now,
       });
       if (!incident || incident.status === 'resolved') continue;
+      if (!recovered)
+        this.monitoring.announce({
+          type: 'remediation.notRecovered',
+          incident,
+          remediation: settled,
+        });
       await this.monitoring.postIncidentUpdate(record.incidentId, {
         body: recovered
           ? `The probes confirm the service responds again after “${record.actionTitle}”.`

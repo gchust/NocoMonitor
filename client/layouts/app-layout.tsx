@@ -1,4 +1,8 @@
 import { useSyncServerLocale } from '@nocobase/app-plugin-i18n/client';
+import {
+  useInboxRefresh,
+  useInboxUnreadCount,
+} from '@nocobase/app-plugin-notification-in-app/client/inbox';
 import type { ReactElement } from 'react';
 import type { AppClientRegisteredRoute } from '@nocobase/app-client/plugins';
 import { Outlet, useLocation } from 'react-router';
@@ -34,6 +38,9 @@ export function AppLayout({ routes }: AppLayoutProps): ReactElement {
   useSyncServerLocale();
 
   const { t } = useTranslation();
+  // NocoMonitor: the Inbox entry counts unread messages, alerts among them, and stays current over realtime.
+  useInboxRefresh();
+  const unread = useInboxUnreadCount().data ?? 0;
   const { items: menuItems, denied } = useRouteNavigation(routes);
   const selectedKey = selectedNavigationId(
     routes,
@@ -54,6 +61,7 @@ export function AppLayout({ routes }: AppLayoutProps): ReactElement {
               items={menuItems}
               label={navigationLabel}
               selectedKey={selectedKey}
+              badges={{ inbox: unread }}
             />
           </AppSidebar>
           <div className='flex min-w-0 flex-1 flex-col'>

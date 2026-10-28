@@ -9,6 +9,22 @@ export function useCanManage(): boolean {
   }).can;
 }
 
+/** Why deciding a fix failed, in the reader's language: the server's own message is written for agents, in English. */
+export function fixErrorText(
+  error: unknown,
+  t: (key: string) => string,
+): string {
+  const reason = error instanceof ApiClientError ? error.reason : undefined;
+  if (reason === 'NOT_PENDING') return t('monitoring.fixes.errors.notPending');
+  if (reason === 'REMEDIATION_NOT_FOUND' || reason === 'INCIDENT_NOT_FOUND')
+    return t('monitoring.errors.notFound');
+  if (reason === 'INCIDENT_RESOLVED')
+    return t('monitoring.fixes.errors.resolved');
+  if (error instanceof ApiClientError && error.status === 403)
+    return t('monitoring.errors.forbidden');
+  return t('monitoring.fixes.errors.failed');
+}
+
 /** The text of an error from a write, for a toast. */
 export function errorText(error: unknown, fallback: string): string {
   if (error instanceof ApiClientError || error instanceof Error)

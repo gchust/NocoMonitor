@@ -1,7 +1,7 @@
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
 import { CheckIcon, PlayIcon, WrenchIcon, XIcon } from 'lucide-react';
-import { useId, useState, type ReactElement } from 'react';
+import { useId, useRef, useState, type ReactElement } from 'react';
 
 import { StatusBadge } from '#components/status-badge';
 import { Button } from '#components/ui/button';
@@ -23,14 +23,14 @@ import {
 import { Field, FieldLabel } from '#components/ui/field';
 import { Textarea } from '#components/ui/textarea';
 
-import { useApiData } from '../../hooks/use-api-data.js';
 import {
   formatDateTime,
   type Remediation,
   type RemediationOptions,
   type RemediationStatus,
 } from '../../lib/monitoring.js';
-import { errorText } from '../monitoring/utils.js';
+import { ApproveFixDialog } from '../monitoring/approve-fix-dialog.js';
+import { errorText, fixErrorText } from '../monitoring/utils.js';
 
 const TONE: Record<
   RemediationStatus,
@@ -58,11 +58,14 @@ function toneOf(
  */
 export function RemediationPanel({
   incidentId,
+  data,
   resolved,
   canManage,
   onChanged,
 }: {
   readonly incidentId: string;
+  /** Read by the incident page, which shows the fixes' progress in its response card too. */
+  readonly data: RemediationOptions;
   readonly resolved: boolean;
   readonly canManage: boolean;
   readonly onChanged: () => void;
@@ -70,42 +73,27 @@ export function RemediationPanel({
   const { t, i18n } = useTranslation();
   const api = useApiClient();
   const toaster = useToaster();
-  const options = useApiData<{ data: RemediationOptions }>(
-    `incidents/${encodeURIComponent(incidentId)}/remediations`,
-    undefined,
-    { refreshMs: 10000 },
-  );
   const [running, setRunning] = useState<{ key: string; title: string }>();
+  const [approving, setApproving] = useState<Remediation | null>(null);
   const [busy, setBusy] = useState<string>();
-  const data = options.data?.data;
-  if (!data || (!data.actions.length && !data.remediations.length)) return null;
+  // Deciding a fix removes the buttons that were focused: focus returns to this card, not to the page.
+  const cardRef = useRef<HTMLDivElement>(null);
+  if (!data.actions.length && !data.remediations.length) return null;
 
-  const decide = async (
-    remediation: Remediation,
-    decision: 'approve' | 'reject',
-  ): Promise<void> => {
+  const reject = async (remediation: Remediation): Promise<void> => {
     setBusy(remediation.id);
     try {
       await api.request({
-        path: `remediations/${encodeURIComponent(remediation.id)}/${decision}`,
+        path: `remediations/${encodeURIComponent(remediation.id)}/reject`,
         method: 'POST',
-        ...(decision === 'reject' ? { json: {} } : {}),
+        json: {},
       });
-      toaster.show({
-        type: 'success',
-        title:
-          decision === 'approve'
-            ? t('monitoring.fixes.approved')
-            : t('monitoring.fixes.rejected'),
-      });
+      toaster.show({ type: 'success', title: t('monitoring.fixes.rejected') });
+      cardRef.current?.focus();
     } catch (error) {
-      toaster.show({
-        type: 'error',
-        title: errorText(error, t('monitoring.errors.save')),
-      });
+      toaster.show({ type: 'error', title: fixErrorText(error, t) });
     } finally {
       setBusy(undefined);
-      options.reload();
       onChanged();
     }
   };
@@ -115,7 +103,7 @@ export function RemediationPanel({
   );
 
   return (
-    <Card>
+    <Card ref={cardRef} tabIndex={-1} className='outline-none'>
       <CardHeader>
         <CardTitle className='flex items-center gap-2'>
           <WrenchIcon className='size-5 text-muted-foreground' />
@@ -166,8 +154,9 @@ export function RemediationPanel({
                   <div className='mt-2 flex gap-2'>
                     <Button
                       size='sm'
+                      variant='outline'
                       disabled={busy !== undefined}
-                      onClick={() => void decide(item, 'approve')}
+                      onClick={() => setApproving(item)}
                     >
                       <CheckIcon data-icon='inline-start' />
                       {t('monitoring.fixes.approve')}
@@ -176,7 +165,7 @@ export function RemediationPanel({
                       size='sm'
                       variant='outline'
                       disabled={busy !== undefined}
-                      onClick={() => void decide(item, 'reject')}
+                      onClick={() => void reject(item)}
                     >
                       <XIcon data-icon='inline-start' />
                       {t('monitoring.fixes.reject')}
@@ -219,12 +208,15 @@ export function RemediationPanel({
           incidentId={incidentId}
           action={running}
           onClose={() => setRunning(undefined)}
-          onDone={() => {
-            options.reload();
-            onChanged();
-          }}
+          onDone={onChanged}
         />
       ) : null}
+      <ApproveFixDialog
+        remediation={approving}
+        onClose={() => setApproving(null)}
+        onDone={onChanged}
+        approvedFocus={cardRef}
+      />
     </Card>
   );
 }

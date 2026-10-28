@@ -428,12 +428,14 @@ export function SwitchField({
   description,
   checked,
   onChange,
+  disabled,
 }: {
   readonly id: string;
   readonly label: string;
   readonly description?: string;
   readonly checked: boolean;
   readonly onChange: (checked: boolean) => void;
+  readonly disabled?: boolean;
 }): ReactElement {
   return (
     <Field orientation='horizontal'>
@@ -443,7 +445,12 @@ export function SwitchField({
           <FieldDescription>{description}</FieldDescription>
         ) : null}
       </div>
-      <Switch id={id} checked={checked} onCheckedChange={onChange} />
+      <Switch
+        id={id}
+        checked={checked}
+        disabled={disabled}
+        onCheckedChange={onChange}
+      />
     </Field>
   );
 }

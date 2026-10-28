@@ -12,12 +12,15 @@ import {
   describeRoute,
   type AppApiRouteContribution,
 } from '@nocobase/app-server/router';
+import { databaseManagerToken } from '@nocobase/db';
 import { Hono } from 'hono';
 
 import { DiagnosisUnavailableError } from '../agents/incident-agent.js';
+import { readBriefing } from '../monitoring/briefing.js';
 import { RemediationError } from '../monitoring/remediation.js';
 import { incidentAgentsToken } from '../providers/agents.js';
 import {
+  drillServiceToken,
   monitoringServiceToken,
   remediationServiceToken,
 } from '../providers/monitoring.js';
@@ -25,8 +28,11 @@ import { actorOf, allow, DOMAIN, notFound, type Env } from './monitoring.js';
 import {
   AiSettingsInputSchema,
   AiSettingsSchema,
+  BriefingQuery,
+  BriefingSchema,
   DiagnosisStartedSchema,
   IncidentParams,
+  InvestigationActivitySchema,
   RemediationOptionsSchema,
   RemediationParams,
   RemediationRejectSchema,
@@ -78,6 +84,7 @@ export const aiRoutes: AppApiRouteContribution<Application> = defineApiRoutes(
     for (const path of [
       '/monitoringAi',
       '/incidents/:incidentId/diagnose',
+      '/incidents/:incidentId/aiActivity',
       '/incidents/:incidentId/remediations',
       '/remediations',
     ]) {
@@ -129,9 +136,78 @@ export const aiRoutes: AppApiRouteContribution<Application> = defineApiRoutes(
             agentId: input.agentId,
             actorUserId: input.agentId ? actor.id : null,
             actorName: input.agentId ? actor.name : null,
+            language: input.language,
           },
           actor.id,
         );
+        return context.json({ data });
+      },
+    );
+
+    routes.get(
+      '/monitoringAi/briefing',
+      describeRoute({
+        tags: TAGS,
+        summary: 'What the AI did lately and what waits on people',
+        description:
+          'The diagnosis agent and whether it could take work now, what it diagnosed and fixed over the last `days`, the fix approvals and failed diagnoses of open incidents, and the latest diagnosis and fix updates.',
+        operationId: 'nocomonitorReadAiBriefing',
+        responses: {
+          '200': dataResponse(BriefingSchema),
+          ...apiErrorResponses,
+        },
+      }),
+      allow('read'),
+      apiValidator('query', BriefingQuery),
+      async (context) => {
+        const { days } = context.req.valid('query');
+        const db = app.container.resolve(databaseManagerToken);
+        const settings = await remediation().aiSettings();
+        // One after the other: on SQLite the transaction holds the only connection the reads would wait for.
+        const briefing = await readBriefing(db, {
+          days,
+          excludeServiceId: await app.container
+            .resolve(drillServiceToken)
+            .serviceId(),
+        });
+        const agent = await db.transaction((conn) =>
+          app.container
+            .resolve(incidentAgentsToken)
+            .agentSummary(conn, settings),
+        );
+        return context.json({ data: { ...briefing, agent } });
+      },
+    );
+
+    routes.get(
+      '/incidents/:incidentId/aiActivity',
+      describeRoute({
+        tags: TAGS,
+        summary: 'How the diagnosis agent investigated an incident',
+        description:
+          'The steps of the incident’s latest diagnosis run, each classified (read the incident, probe, request, read code, record the diagnosis, request a fix, other command). Commands, their output and the agent’s thinking are never returned.',
+        operationId: 'nocomonitorReadInvestigationActivity',
+        responses: {
+          '200': dataResponse(InvestigationActivitySchema),
+          ...apiErrorResponses,
+          '404': apiErrorResponse(404),
+        },
+      }),
+      allow('read'),
+      apiValidator('param', IncidentParams),
+      async (context) => {
+        const { incidentId } = context.req.valid('param');
+        const incident = await app.container
+          .resolve(monitoringServiceToken)
+          .getIncident(incidentId);
+        if (!incident)
+          throw notFound(
+            'INCIDENT_NOT_FOUND',
+            `Incident ${incidentId} was not found.`,
+          );
+        const data = await app.container
+          .resolve(incidentAgentsToken)
+          .activity(incident);
         return context.json({ data });
       },
     );

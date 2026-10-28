@@ -1,7 +1,7 @@
 import { useTranslation } from '@nocobase/i18n/client';
 import { PlusIcon, SearchIcon } from 'lucide-react';
-import { useMemo, useState, type ReactElement } from 'react';
-import { Link, Outlet } from 'react-router';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
@@ -68,7 +68,19 @@ export default function MonitorsPage(): ReactElement {
   const services = useApiData<List<Service>>('services');
   const [search, setSearch] = useState('');
   const [serviceId, setServiceId] = useState('all');
-  const [creating, setCreating] = useState(0);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Getting started links here with `{ create: true }` to open the form at once; the state is dropped right away so a
+  // reload or going back does not open it again.
+  const [creating, setCreating] = useState(() =>
+    canManage && (location.state as { create?: boolean } | null)?.create
+      ? 1
+      : 0,
+  );
+  useEffect(() => {
+    if ((location.state as { create?: boolean } | null)?.create)
+      void navigate(location.pathname, { replace: true, state: null });
+  }, [location.pathname, location.state, navigate]);
   const serviceList = useMemo(() => services.data?.data ?? [], [services.data]);
   const serviceName = useMemo(
     () => new Map(serviceList.map((service) => [service.id, service.name])),

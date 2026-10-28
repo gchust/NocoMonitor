@@ -36,6 +36,8 @@ const monitoringEnUS = {
     newSkill: 'New skill',
     skill: 'Skill',
     models: 'Models',
+    alerts: 'Alert notifications',
+    inbox: 'Inbox',
   },
   authorization: {
     section: 'Monitoring',
@@ -56,6 +58,7 @@ const monitoringEnUS = {
     next: 'Next',
     previous: 'Previous',
     pageOf: 'Page {{page}} of {{pages}}',
+    loading: 'Loading',
   },
   errors: {
     load: 'Could not load this data.',
@@ -163,13 +166,124 @@ const monitoringEnUS = {
     medianLatency: 'Median response time',
     latencyHint: 'Latest check of each monitor',
     uptime90: 'Uptime, 90 days',
-    uptimeHint: 'Average across services',
+    uptimeHint: 'Across every check of every service',
     activeIncidents: 'Active incidents',
     services: 'Services',
     noServices: 'No services yet',
     noServicesHint: 'Add a service, then the monitors that probe it.',
     lastChecked: 'Last checked {{when}}',
     openPublicPage: 'Public status page',
+  },
+  oncall: {
+    title: {
+      online: 'AI on call',
+      offline: 'AI on call — paused',
+      off: 'AI on call — automatic diagnosis off',
+      notConfigured: 'AI diagnosis is not set up',
+    },
+    online: 'Online',
+    offline: 'Offline',
+    pitch:
+      'Every new incident is investigated by the agent; fixes run only within your guardrails, and the probes confirm recovery.',
+    offlineHint:
+      'No runtime can take its work now: diagnoses wait until one is back online.',
+    offHint:
+      'New incidents are not diagnosed automatically; ask for a diagnosis from an incident.',
+    notConfiguredHint:
+      'Choose an agent and every new incident is investigated automatically: the root cause, the evidence and what to do next.',
+    askAdmin: 'Ask an administrator to set it up.',
+    setUp: 'Set up AI diagnosis',
+    busy: '{{count}} in progress',
+    diagnosed: 'Diagnosed by AI',
+    diagnosedValue: '{{diagnosed}} / {{total}}',
+    diagnosedHint: 'Of the incidents opened',
+    timeToDiagnosis: 'Median time to diagnosis',
+    timeHint: 'From the first failure to the root cause',
+    fixesVerified: 'Fixes verified',
+    fixesValue: '{{verified}} of {{requested}}',
+    fixesHint: 'Requested by the agent, confirmed by the probes',
+    waiting: 'Waiting on you',
+    waitingHint: 'Fix approvals and failed diagnoses',
+    noIncidents: 'No incidents in the last {{count}} days',
+    attention: {
+      title: 'Waiting on you',
+      description: 'Decisions the agent leaves to people.',
+      approval: 'Approve fix “{{action}}”',
+      approvalOthers: 'Fix “{{action}}” waits for approval',
+      failed: 'Diagnosis failed — try again',
+      more: 'Showing {{shown}} of {{count}} — view open incidents',
+    },
+    feed: {
+      title: 'Agent activity',
+      description: 'Diagnoses and fixes over the last {{count}} days.',
+      empty: 'No agent activity yet',
+      emptyHint: 'Diagnoses and fixes appear here as the agent works.',
+      viewAll: 'View all incidents',
+      kind: { diagnosis: 'Diagnosis', remediation: 'Fix' },
+    },
+    allClear: {
+      title: 'All clear',
+      description: 'No open incidents, and nothing waits on you.',
+    },
+  },
+  pipeline: {
+    title: 'Automatic response',
+    description: 'Where NocoMonitor and the agent are with this incident.',
+    label: 'Automatic response: {{steps}}',
+    steps: {
+      detect: 'Detect',
+      diagnose: 'Diagnose',
+      fix: 'Fix',
+      verify: 'Verify',
+    },
+    state: {
+      done: 'done',
+      active: 'in progress',
+      waiting: 'waiting for you',
+      failed: 'failed',
+      skipped: 'skipped',
+      pending: 'not yet',
+    },
+    detect: {
+      auto: 'Detected {{when}}',
+      manual: 'Reported {{when}}',
+      drill: 'Detected in {{duration}}',
+      unreachable: 'Target unreachable',
+    },
+    diagnose: {
+      none: 'Not diagnosed',
+      queued: 'Queued for the agent',
+      running: 'Investigating…',
+      completed: 'Root cause in {{duration}}',
+      completedNoTime: 'Diagnosed',
+      failed: 'Diagnosis failed',
+      notSetUp: 'AI diagnosis not set up',
+    },
+    fix: {
+      pending: 'Waiting for your approval',
+      pendingOthers: 'Waiting for approval',
+      running: 'Running “{{action}}”',
+      applied: 'Ran “{{action}}”',
+      failed: 'Fix failed',
+      rejected: 'Rejected',
+      off: 'Diagnosis only',
+      suggest: 'Suggestions only',
+      none: 'No fix requested',
+      notYet: 'Not yet',
+    },
+    verify: {
+      verifying: 'Probes verifying…',
+      verified: 'Recovered',
+      unverified: 'Not recovered — back to people',
+      recovered: 'Recovered {{when}}',
+      recoveredIn: 'Recovered in {{duration}}',
+      notYet: 'Not yet',
+    },
+    next: {
+      approval: 'The agent asks to run “{{action}}”.',
+      diagnose: 'No diagnosis yet. Ask the agent to investigate.',
+      retry: 'The diagnosis did not finish. Ask the agent again.',
+    },
   },
   monitors: {
     title: 'Monitors',
@@ -254,6 +368,25 @@ const monitoringEnUS = {
   ai: {
     title: 'AI diagnosis',
     rootCause: 'Root cause',
+    evidence: 'Evidence',
+    activity: {
+      title: 'How the agent investigated',
+      summary_one: '{{count}} step · {{duration}}',
+      summary_other: '{{count}} steps · {{duration}}',
+      summaryRunning_one: '{{count}} step so far',
+      summaryRunning_other: '{{count}} steps so far',
+      unavailable: 'The investigation steps cannot be loaded.',
+      empty: 'No steps recorded yet.',
+      kind: {
+        context: 'Read the incident and recent checks',
+        probe: 'Probed the endpoint again',
+        request: 'Requested the service directly',
+        code: 'Read the service’s code',
+        diagnose: 'Recorded the diagnosis',
+        remediate: 'Requested a fix',
+        command: 'Ran a command',
+      },
+    },
     suggestedActions: 'Suggested actions',
     noneYet:
       'No diagnosis yet. Monitors with AI diagnosis on ask an agent as soon as they go down.',
@@ -272,6 +405,7 @@ const monitoringEnUS = {
     diagnose: 'Diagnose with AI',
     diagnoseAgain: 'Diagnose again',
     requested: 'The agent will investigate',
+    requestFailed: 'The diagnosis could not be requested. Try again.',
     settings: {
       title: 'AI diagnosis',
       description:
@@ -310,6 +444,11 @@ const monitoringEnUS = {
       auto: 'Diagnose new incidents automatically',
       autoHint:
         'For monitors with AI diagnosis on. Off, people still ask for a diagnosis from the incident.',
+      language: 'Diagnosis language',
+      languageHint:
+        'What the agent writes diagnoses in, and the titles of the incidents NocoMonitor opens.',
+      languageDefault: 'Follow the application default',
+      languages: { enUS: 'English', zhCN: '简体中文' },
       saved: 'AI settings saved',
       noAgents: 'No agent yet',
       noAgentsHint:
@@ -337,7 +476,6 @@ const monitoringEnUS = {
     available: 'Run a fix',
     approve: 'Approve and run',
     reject: 'Reject',
-    approved: 'Fix approved',
     rejected: 'Fix rejected',
     run: 'Run fix',
     running: 'Running…',
@@ -345,6 +483,16 @@ const monitoringEnUS = {
     runDescription:
       'NocoMonitor makes the configured call now; the probes then verify whether the service recovers.',
     reason: 'Why',
+    confirmTitle: 'Run fix “{{action}}”?',
+    confirmDescription:
+      'NocoMonitor calls the endpoint this fix is configured with now; the probes then check whether the service recovers.',
+    confirm: 'Run fix',
+    confirmed: 'Fix “{{action}}” approved',
+    errors: {
+      notPending: 'Someone has already decided on this fix.',
+      resolved: 'The incident is already resolved; nothing to fix.',
+      failed: 'The fix could not be decided. Try again.',
+    },
     requestedBy: {
       agent: 'Requested by agent {{name}}',
       user: 'Run by {{name}}',
@@ -438,6 +586,155 @@ const monitoringEnUS = {
     noPastIncidents: 'No incidents reported.',
     updated: 'Updated {{when}}',
     poweredBy: 'Powered by NocoMonitor',
+  },
+  // Getting started, on the overview, for people who manage monitoring.
+  start: {
+    title: 'Get started with NocoMonitor',
+    description:
+      'Three steps to see the whole automatic response: detect, diagnose, fix and verify.',
+    progress: '{{done}} of {{total}} done',
+    hide: 'Hide',
+    show: 'Get started',
+    done: 'Done',
+    steps: {
+      agent: {
+        title: 'Connect a diagnosis agent',
+        description: 'The agent investigates every new incident.',
+        action: 'Set up AI diagnosis',
+        offline: 'An agent is chosen but offline.',
+      },
+      monitor: {
+        title: 'Monitor your own service',
+        description: 'Add a health check for something you run.',
+        action: 'Add a monitor',
+      },
+      drill: {
+        title: 'Run a drill',
+        description:
+          'Watch a staged outage go from detection to verified recovery in a few minutes.',
+        action: 'Start a drill',
+      },
+    },
+  },
+  drill: {
+    confirmTitle: 'Start a drill?',
+    confirmDescription:
+      'NocoMonitor creates a test service whose health check starts failing. The agent investigates it like a real outage and asks to run a fix; you approve it and the probes confirm recovery. Nothing outside NocoMonitor is touched.',
+    confirm: 'Start drill',
+    started: 'Drill started: the first check runs within 20 seconds',
+    running: 'Drill in progress',
+    recovered: 'Drill complete',
+    summary:
+      'Detected in {{detect}}, diagnosed in {{diagnose}}, recovered in {{recover}}.',
+    summaryNoDiagnosis: 'Detected in {{detect}}, recovered in {{recover}}.',
+    waitingCheck: 'Waiting for the first check…',
+    openIncident: 'Open the drill incident',
+    end: 'End drill',
+    endAndClean: 'End drill and clean up',
+    endTitle: 'End the drill?',
+    endDescription:
+      'The drill service and everything it recorded — its monitor, checks, incident, fix and updates — are deleted.',
+    ended: 'Drill ended and cleaned up',
+    noAgent: 'AI diagnosis is not set up, so the drill stops after detection.',
+    unreachable:
+      'NocoMonitor cannot reach its own drill target at {{url}}. Set app.publicOrigin to an address the server can reach.',
+    approveHint:
+      'The agent asks to run “{{action}}”: approve it on the incident.',
+    show: 'Show progress',
+    startFailed: 'The drill could not be started. Try again.',
+    endFailed: 'The drill could not be ended. Try again.',
+    practice: {
+      title: 'Practice with a drill',
+      description:
+        'Stage an outage at any time to check that detection, diagnosis, approval and alerts still work end to end. Everything the drill records is deleted when it ends.',
+      running:
+        'A drill is in progress. Follow it, approve its fix and end it on the overview.',
+    },
+  },
+  alerts: {
+    title: 'Alert notifications',
+    description:
+      'Who is told when an incident opens, a fix waits for approval, a diagnosis fails or a fix does not recover the service.',
+    readOnly:
+      'You can view these settings; changing them needs the Manage permission for monitoring.',
+    recipients: {
+      title: 'Recipients',
+      description:
+        'Only the people chosen here receive alerts, in the inbox and by email.',
+      placeholder: 'Search people by name or email',
+      empty: 'No one matches',
+      none: 'Nobody receives alerts yet.',
+      noEmail: 'no email address',
+      remove: 'Remove {{name}}',
+    },
+    channels: {
+      title: 'Channels',
+      description: 'The notification channels configured for this application.',
+      empty: 'No notification channels are configured',
+      emptyHint:
+        'Channels are configured under notification.channels in config.yml, then the application is restarted.',
+      kind: {
+        inApp: 'In-app inbox · to the recipients',
+        email: 'Email · to the recipients',
+        webhook: 'Group webhook · to the whole group',
+        unsupported: 'Not supported for alerts',
+      },
+    },
+    events: {
+      title: 'Events',
+      description: 'What is worth telling people.',
+      incidentOpened: 'An incident opens',
+      incidentOpenedHint:
+        'When a monitor goes down or someone declares an incident.',
+      fixAwaitingApproval: 'A fix waits for approval',
+      fixAwaitingApprovalHint:
+        'The agent asked to run a fix that needs a person to approve.',
+      diagnosisFailed: 'A diagnosis fails',
+      diagnosisFailedHint: 'The agent could not finish investigating.',
+      fixNotRecovered: 'A fix does not recover the service',
+      fixNotRecoveredHint: 'The probes still fail after the fix ran.',
+      incidentResolved: 'An incident resolves',
+      incidentResolvedHint: 'The probes confirm recovery.',
+    },
+    saved: 'Alert settings saved',
+    saveFailed: 'Alert settings could not be saved. Try again.',
+    unknownChannel:
+      'A chosen channel is no longer configured. Reload the page and choose again.',
+    notInstalled: 'Notifications are not installed in this application.',
+    testFailedChannels: 'The test notification failed on {{channels}}',
+    test: 'Send a test notification',
+    testing: 'Sending…',
+    testSent: 'Test notification sent',
+    testFailed: 'The test notification could not be sent',
+    testNeedsSave: 'Save your changes before sending a test.',
+    noDestination:
+      'Choose recipients, or a group webhook channel, before sending.',
+    deliveries: {
+      title: 'Recent deliveries',
+      description: 'The last 20 alerts NocoMonitor sent.',
+      empty: 'No alerts sent yet',
+      emptyHint:
+        'Alerts appear here as incidents happen. Send a test to try the channels.',
+      time: 'Time',
+      alert: 'Alert',
+      channels: 'Channels',
+      status: 'Status',
+      event: {
+        incidentOpened: 'Incident opened',
+        fixAwaitingApproval: 'Fix awaiting approval',
+        diagnosisFailed: 'Diagnosis failed',
+        fixNotRecovered: 'Fix did not recover',
+        incidentResolved: 'Incident resolved',
+        test: 'Test',
+      },
+      state: {
+        pending: 'Sending',
+        delivered: 'Delivered',
+        partial: 'Partly delivered',
+        failed: 'Failed',
+        unknown: 'Unknown',
+      },
+    },
   },
 };
 

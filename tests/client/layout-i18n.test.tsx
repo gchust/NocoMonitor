@@ -22,6 +22,11 @@ vi.mock('@nocobase/app-plugin-i18n/client', () => ({
 }));
 
 vi.mock('../../client/theme/index.js', () => ({ ThemeSettings: () => null }));
+// The inbox badge reads the application's realtime and query clients, which this bare shell does not provide.
+vi.mock('@nocobase/app-plugin-notification-in-app/client/inbox', () => ({
+  useInboxRefresh: () => undefined,
+  useInboxUnreadCount: () => ({ data: 0 }),
+}));
 vi.mock('../../client/layouts/components/user-menu.js', () => ({
   UserMenu: () => null,
 }));

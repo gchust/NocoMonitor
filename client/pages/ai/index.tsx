@@ -4,12 +4,13 @@ import {
   ActivityIcon,
   BotIcon,
   CheckCircle2Icon,
+  FlaskConicalIcon,
   RadarIcon,
   ShieldCheckIcon,
   WrenchIcon,
 } from 'lucide-react';
 import { useId, useState, type ReactElement } from 'react';
-import { Link } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 
 import { PageContainer } from '#components/page-container';
 import { PageHeader } from '#components/page-header';
@@ -46,8 +47,15 @@ import {
 import { Skeleton } from '#components/ui/skeleton';
 
 import { useApiData } from '../../hooks/use-api-data.js';
-import type { AiSettings, AvailableAgent, List } from '../../lib/monitoring.js';
+import type {
+  AiSettings,
+  AvailableAgent,
+  DiagnosisLanguage,
+  DrillStatus,
+  List,
+} from '../../lib/monitoring.js';
 import { LoadError } from '../monitoring/components.js';
+import { useDrillAction } from '../monitoring/drill-dialog.js';
 import { SwitchField } from '../monitors/monitor-form.js';
 import { errorText, useCanManage } from '../monitoring/utils.js';
 
@@ -108,6 +116,8 @@ export default function AiSettingsPage(): ReactElement {
         />
       )}
 
+      <DrillCard />
+
       <Card>
         <CardHeader>
           <CardTitle className='flex items-center gap-2'>
@@ -129,6 +139,65 @@ export default function AiSettingsPage(): ReactElement {
   );
 }
 
+/**
+ * A drill at any time, for people who manage monitoring: Getting started offers the first one, this the ones after it.
+ * A started or running drill is followed on the overview, which shows its progress.
+ */
+function DrillCard(): ReactElement | null {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const canManage = useCanManage();
+  const drill = useApiData<{ data: DrillStatus }>(
+    canManage ? 'monitoringDrill' : null,
+  );
+  const { busy, ask, dialog } = useDrillAction({
+    onDone: () => void navigate('/'),
+    onSettled: drill.reload,
+  });
+  const status = drill.data?.data;
+  if (!canManage || !status) return null;
+  const running = status.state !== 'idle';
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className='flex items-center gap-2'>
+          <FlaskConicalIcon className='size-5 text-muted-foreground' />
+          {t('monitoring.drill.practice.title')}
+        </CardTitle>
+        <CardDescription>
+          {t(
+            running
+              ? 'monitoring.drill.practice.running'
+              : 'monitoring.drill.practice.description',
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardFooter className='border-t pt-4'>
+        {running ? (
+          <Button
+            variant='outline'
+            nativeButton={false}
+            render={<Link to='/' />}
+          >
+            {t('monitoring.drill.show')}
+          </Button>
+        ) : (
+          <Button
+            variant='outline'
+            disabled={busy}
+            onClick={() => ask('start')}
+          >
+            <FlaskConicalIcon data-icon='inline-start' />
+            {t('monitoring.start.steps.drill.action')}
+          </Button>
+        )}
+      </CardFooter>
+      {dialog}
+    </Card>
+  );
+}
+
 function SettingsForm({
   settings,
   agents,
@@ -145,6 +214,14 @@ function SettingsForm({
   const id = useId();
   const [enabled, setEnabled] = useState(settings.enabled);
   const [agentId, setAgentId] = useState<string | null>(settings.agentId);
+  const [language, setLanguage] = useState<DiagnosisLanguage | 'default'>(
+    settings.language ?? 'default',
+  );
+  const languageItems = [
+    { value: 'default', label: t('monitoring.ai.settings.languageDefault') },
+    { value: 'zh-CN', label: t('monitoring.ai.settings.languages.zhCN') },
+    { value: 'en-US', label: t('monitoring.ai.settings.languages.enUS') },
+  ];
   const [busy, setBusy] = useState(false);
   const selected = agents.find((agent) => agent.id === agentId);
   const items = [
@@ -166,7 +243,11 @@ function SettingsForm({
       await api.request({
         path: 'monitoringAi/settings',
         method: 'PUT',
-        json: { enabled, agentId },
+        json: {
+          enabled,
+          agentId,
+          language: language === 'default' ? null : language,
+        },
       });
       toaster.show({
         type: 'success',
@@ -265,6 +346,33 @@ function SettingsForm({
             {selected?.goodAt ? (
               <FieldDescription>{selected.goodAt}</FieldDescription>
             ) : null}
+          </Field>
+          <Field>
+            <FieldLabel htmlFor={`${id}-language`}>
+              {t('monitoring.ai.settings.language')}
+            </FieldLabel>
+            <Select
+              items={languageItems}
+              value={language}
+              disabled={!canManage}
+              onValueChange={(value: string | null) => {
+                if (value) setLanguage(value as DiagnosisLanguage | 'default');
+              }}
+            >
+              <SelectTrigger id={`${id}-language`} className='w-full'>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className='w-auto max-w-[min(var(--container-sm),var(--available-width))] min-w-(--anchor-width) [&_[data-slot=select-item]>:first-child]:whitespace-normal'>
+                {languageItems.map((item) => (
+                  <SelectItem key={item.value} value={item.value}>
+                    {item.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <FieldDescription>
+              {t('monitoring.ai.settings.languageHint')}
+            </FieldDescription>
           </Field>
           <SwitchField
             id={`${id}-enabled`}

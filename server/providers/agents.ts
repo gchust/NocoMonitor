@@ -12,6 +12,7 @@ import {
 
 import { IncidentAgents } from '../agents/incident-agent.js';
 import {
+  diagnosisLanguage,
   monitoringServiceToken,
   remediationServiceToken,
 } from './monitoring.js';
@@ -41,6 +42,7 @@ export default class AgentsIntegrationProvider extends ServiceProvider<Applicati
           this.app.container.resolve(monitoringServiceToken),
           this.app.container.resolve(remediationServiceToken),
           this.app.container.resolve(loggingToken).getLogger('incident-agents'),
+          (conn) => diagnosisLanguage(this.app.container, conn),
         ),
     );
   }

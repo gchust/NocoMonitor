@@ -7,6 +7,7 @@ import {
 } from '@nocobase/app-plugin-agents/client/routes';
 import {
   Activity,
+  BellRing,
   Bot,
   BotMessageSquare,
   Boxes,
@@ -14,6 +15,7 @@ import {
   ChartColumn,
   Cpu,
   Globe,
+  Inbox,
   LayoutDashboard,
   Server,
   Siren,
@@ -47,6 +49,16 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
       order: 1,
     },
     path: '/',
+    children: [
+      {
+        // An incident opened from the overview covers the overview, so the menu stays on Overview and Back returns
+        // there; the same page as the Incidents child, under the monitoring grant the incident endpoints check.
+        authz: monitoringRead,
+        componentLoader: () => import('./pages/incidents/detail.js'),
+        name: 'overviewIncident',
+        path: 'incident/:incidentId',
+      },
+    ],
   },
   {
     auth: 'required',
@@ -119,6 +131,18 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
     path: '/ai',
   },
   {
+    auth: 'required',
+    authz: monitoringRead,
+    componentLoader: () => import('./pages/alerts/index.js'),
+    name: 'alerts',
+    navigation: {
+      title: 'monitoring.navigation.alerts',
+      icon: BellRing,
+      order: 7,
+    },
+    path: '/alerts',
+  },
+  {
     // The Agents plugin's pages, routed here: the agents that diagnose, the runtimes they run on, their skills, what
     // they cost, and the model services. Each keeps the page grant the plugin names it by.
     name: 'agentManagement',
@@ -177,6 +201,12 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
     auth: 'required',
     componentLoader: () => import('./pages/inbox.js'),
     name: 'inbox',
+    // Right after the overview: alerts land here. The App layout shows the unread count beside it.
+    navigation: {
+      title: 'monitoring.navigation.inbox',
+      icon: Inbox,
+      order: 1.5,
+    },
     path: '/inbox',
   },
   {
