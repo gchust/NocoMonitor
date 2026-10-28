@@ -247,3 +247,93 @@ export interface Actor {
   id: string | null;
   name: string | null;
 }
+
+/** What a person set up by talking to an agent: monitors (with their services), or a status page. */
+export type SetupKind = 'monitors' | 'statusPage';
+export type SetupState =
+  'queued' | 'running' | 'replied' | 'failed' | 'applied';
+
+/** Something the agent needs to know, with the answers it expects when it can tell them. */
+export interface SetupQuestion {
+  id: string;
+  text: string;
+  options: string[];
+}
+
+/** A service a proposal uses: one that exists (`existingId`), or one applying creates. Monitors name it by `key`. */
+export interface ProposedService {
+  key: string;
+  existingId: string | null;
+  name: string;
+  description: string | null;
+  repoUrl: string | null;
+}
+
+export type ProposedMonitor = Pick<
+  MonitorRecord,
+  | 'name'
+  | 'type'
+  | 'url'
+  | 'method'
+  | 'expectedStatus'
+  | 'keyword'
+  | 'jsonPath'
+  | 'jsonExpected'
+  | 'intervalSec'
+  | 'timeoutMs'
+  | 'degradedLatencyMs'
+  | 'autoDiagnose'
+> & {
+  /** The `key` of its service in the proposal. */
+  service: string;
+  /** Why the agent chose this check: what it saw when it requested the address. */
+  note: string | null;
+};
+
+export interface ProposedStatusPage {
+  title: string;
+  slug: string;
+  description: string | null;
+  /** The `key`s of the services it shows. */
+  services: string[];
+}
+
+export interface SetupProposal {
+  services: ProposedService[];
+  monitors: ProposedMonitor[];
+  statusPage: ProposedStatusPage | null;
+}
+
+export interface SetupTurn {
+  id: string;
+  role: 'user' | 'agent';
+  at: string;
+  text: string;
+  questions: SetupQuestion[];
+  proposal: SetupProposal | null;
+  /** The run that wrote an agent turn, or that a person's turn woke. */
+  runId: string | null;
+}
+
+export interface SetupResult {
+  serviceIds: string[];
+  monitorIds: string[];
+  statusPageId: string | null;
+  /** What the person chose of the proposal: its monitors by index, and whether its status page. */
+  chosen: { monitors: number[]; statusPage: boolean };
+}
+
+export interface SetupRecord {
+  id: string;
+  kind: SetupKind;
+  state: SetupState;
+  runId: string | null;
+  language: DiagnosisLanguage;
+  turns: SetupTurn[];
+  result: SetupResult | null;
+  createdById: string;
+  createdByName: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  appliedAt: Date | null;
+}

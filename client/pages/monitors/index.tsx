@@ -1,5 +1,5 @@
 import { useTranslation } from '@nocobase/i18n/client';
-import { PlusIcon, SearchIcon } from 'lucide-react';
+import { PlusIcon, SearchIcon, SparklesIcon } from 'lucide-react';
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router';
 
@@ -8,6 +8,7 @@ import { PageHeader } from '#components/page-header';
 import { Button } from '#components/ui/button';
 import {
   Empty,
+  EmptyContent,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
@@ -44,6 +45,7 @@ import {
 } from '../../lib/monitoring.js';
 import { LoadError, MonitorStatusBadge } from '../monitoring/components.js';
 import { useCanManage } from '../monitoring/utils.js';
+import { AskAiDialog } from '../setup/ask-ai-dialog.js';
 import { MonitorFormDialog } from './monitor-form.js';
 
 export interface MonitorsOutletContext {
@@ -70,15 +72,16 @@ export default function MonitorsPage(): ReactElement {
   const [serviceId, setServiceId] = useState('all');
   const location = useLocation();
   const navigate = useNavigate();
-  // Getting started links here with `{ create: true }` to open the form at once; the state is dropped right away so a
+  const [creating, setCreating] = useState(0);
+  // Getting started links here with `{ askAi: true }` to ask the agent at once; the state is dropped right away so a
   // reload or going back does not open it again.
-  const [creating, setCreating] = useState(() =>
-    canManage && (location.state as { create?: boolean } | null)?.create
-      ? 1
-      : 0,
+  const [asking, setAsking] = useState(
+    () =>
+      canManage &&
+      Boolean((location.state as { askAi?: boolean } | null)?.askAi),
   );
   useEffect(() => {
-    if ((location.state as { create?: boolean } | null)?.create)
+    if ((location.state as { askAi?: boolean } | null)?.askAi)
       void navigate(location.pathname, { replace: true, state: null });
   }, [location.pathname, location.state, navigate]);
   const serviceList = useMemo(() => services.data?.data ?? [], [services.data]);
@@ -116,13 +119,20 @@ export default function MonitorsPage(): ReactElement {
           description={t('monitoring.monitors.description')}
           actions={
             canManage ? (
-              <Button
-                onClick={() => setCreating((count) => count + 1)}
-                disabled={!serviceList.length}
-              >
-                <PlusIcon data-icon='inline-start' />
-                {t('monitoring.monitors.add')}
-              </Button>
+              <>
+                <Button
+                  variant='outline'
+                  onClick={() => setCreating((count) => count + 1)}
+                  disabled={!serviceList.length}
+                >
+                  <PlusIcon data-icon='inline-start' />
+                  {t('monitoring.monitors.add')}
+                </Button>
+                <Button onClick={() => setAsking(true)}>
+                  <SparklesIcon data-icon='inline-start' />
+                  {t('monitoring.setup.ask.monitors.button')}
+                </Button>
+              </>
             ) : null
           }
         />
@@ -172,9 +182,21 @@ export default function MonitorsPage(): ReactElement {
             <EmptyHeader>
               <EmptyTitle>{t('monitoring.monitors.empty')}</EmptyTitle>
               <EmptyDescription>
-                {t('monitoring.monitors.emptyHint')}
+                {t(
+                  canManage
+                    ? 'monitoring.setup.ask.monitors.emptyHint'
+                    : 'monitoring.monitors.emptyHint',
+                )}
               </EmptyDescription>
             </EmptyHeader>
+            {canManage ? (
+              <EmptyContent>
+                <Button onClick={() => setAsking(true)}>
+                  <SparklesIcon data-icon='inline-start' />
+                  {t('monitoring.setup.ask.monitors.button')}
+                </Button>
+              </EmptyContent>
+            ) : null}
           </Empty>
         ) : monitors.data ? (
           <div className='overflow-hidden rounded-xl border'>
@@ -262,6 +284,7 @@ export default function MonitorsPage(): ReactElement {
           onSaved={monitors.reload}
         />
       ) : null}
+      <AskAiDialog kind='monitors' open={asking} onOpenChange={setAsking} />
 
       <Outlet
         context={

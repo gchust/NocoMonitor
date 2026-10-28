@@ -409,6 +409,7 @@ const monitoringEnUS = {
         code: 'Read code and files',
         diagnose: 'Recorded the diagnosis',
         remediate: 'Requested a fix',
+        reply: 'Answered',
         command: 'Ran a command',
       },
       now: {
@@ -418,6 +419,7 @@ const monitoringEnUS = {
         code: 'Reading code and files',
         diagnose: 'Recording the diagnosis',
         remediate: 'Requesting a fix',
+        reply: 'Answering',
         command: 'Running a command',
       },
       more: '+{{count}} more',
@@ -569,6 +571,15 @@ const monitoringEnUS = {
       'Request one of the service’s fix actions, within the monitor’s remediation tier.',
     triggerOpened: 'Incident opened',
     triggerManual: 'Asked by a person',
+    setupSubject: 'Setup',
+    setupGroup: 'Setup',
+    setupRead: 'Read and try the configuration',
+    setupReadDescription:
+      'Read a setup conversation and the existing services, monitors and status pages, and probe a candidate monitor once from NocoMonitor.',
+    setupReply: 'Answer setup requests',
+    setupReplyDescription:
+      'Answer, ask and propose in a setup conversation; a person applies the proposal.',
+    setupTriggerMessage: 'New message',
   },
   services: {
     title: 'Services',
@@ -643,6 +654,138 @@ const monitoringEnUS = {
     poweredBy: 'Powered by NocoMonitor',
   },
   // Getting started, on the overview, for people who manage monitoring.
+  setup: {
+    title: 'Set up with AI',
+    description: {
+      monitors:
+        'Say what to monitor. The agent requests the addresses itself, picks the checks, and asks only what it cannot find out. Nothing is created until you confirm.',
+      statusPage:
+        'Describe the status page you want. The agent picks the services, a title and an address. Nothing is created until you confirm.',
+    },
+    ask: {
+      monitors: {
+        button: 'Add with AI',
+        title: 'Tell the agent what to monitor',
+        description:
+          'Give addresses or describe your systems. The agent requests them, looks for health endpoints, and asks what it is missing.',
+        placeholder:
+          'For example: monitor our site https://example.com and its API',
+        examples: {
+          0: 'Monitor https://example.com; its API is at https://api.example.com',
+          1: 'Our CRM runs at https://crm.example.com, add monitoring for it',
+          2: 'Add a health check for every public service',
+        },
+        emptyHint:
+          'Give the agent an address; it finds the right check and sets it up.',
+      },
+      statusPage: {
+        button: 'Create with AI',
+        title: 'Describe the status page you want',
+        description:
+          'Tell the agent who it is for and what it should show. It picks the services, a title and an address, then asks you to confirm.',
+        placeholder:
+          'For example: a public status page for customers with every public service',
+        examples: {
+          0: 'A public status page for customers with every public service',
+          1: 'A status page with only the API services',
+          2: 'An internal status page with every service',
+        },
+      },
+      submit: 'Hand to the agent',
+      safe: 'The agent only proposes; you confirm before anything is created.',
+    },
+    agent: 'Agent',
+    live: 'The agent is working',
+    queued: 'Waiting for a runner…',
+    starting: 'Starting…',
+    step: {
+      context: 'Read the current configuration',
+      probe: 'Tried a check from NocoMonitor',
+      request: 'Requested addresses',
+      code: 'Read files',
+      reply: 'Wrote the answer',
+      diagnose: 'Recorded a conclusion',
+      remediate: 'Requested an action',
+      command: 'Ran commands',
+    },
+    now: {
+      context: 'Reading the current configuration',
+      probe: 'Trying a check from NocoMonitor',
+      request: 'Requesting addresses',
+      code: 'Reading files',
+      reply: 'Writing the answer',
+      diagnose: 'Recording a conclusion',
+      remediate: 'Requesting an action',
+      command: 'Running commands',
+    },
+    questions: {
+      title: 'The agent’s questions',
+      other: 'Or type your own…',
+      answer: 'Your answer…',
+      send: 'Send answers',
+    },
+    composer: {
+      label: 'Message to the agent',
+      placeholder: 'Answer, or tell the agent what to change…',
+      waiting: 'The agent is working…',
+      send: 'Send',
+    },
+    proposal: {
+      title: 'The agent’s proposal',
+      replacedSummary_one: 'An earlier proposal: {{count}} monitor (replaced)',
+      replacedSummary_other:
+        'An earlier proposal: {{count}} monitors (replaced)',
+      created: 'What was created',
+      newService: 'New service',
+      existingService: 'Existing service',
+      check: {
+        http: 'Status {{status}}',
+        keyword: 'Page contains “{{keyword}}”',
+        json: '{{path}} = {{expected}}',
+        jsonPresent: '{{path}} is present',
+      },
+      every_one: 'Every {{count}} second',
+      every_other: 'Every {{count}} seconds',
+      slowAfter: 'Slow above {{ms}} ms',
+      autoDiagnose: 'AI diagnoses failures',
+      pageServices: 'Shows: {{services}}',
+      listSeparator: ', ',
+      hint: 'Created as you; you can change everything later.',
+      apply_one: 'Create {{count}} selected',
+      apply_other: 'Create {{count}} selected',
+    },
+    failed: {
+      title: 'The agent did not answer',
+      description:
+        'Its run did not finish. Try again, or send your message in other words.',
+    },
+    applied: {
+      toast: 'Created as proposed',
+      title: 'All set',
+      summary: 'Created {{items}}.',
+      monitors_one: '{{count}} monitor',
+      monitors_other: '{{count}} monitors',
+      services_one: '{{count}} service',
+      services_other: '{{count}} services',
+      statusPage: 'a status page',
+      firstCheck: 'The first checks run within a minute.',
+      viewMonitors: 'View monitors',
+      viewStatusPages: 'View status pages',
+    },
+    errors: {
+      notConfigured: 'No agent is chosen yet.',
+      openAiSettings: 'Choose one in AI settings',
+      agentUnavailable:
+        'The agent cannot take work now; check that a runner is online.',
+      busy: 'The agent is still working on your previous message.',
+      closed: 'This setup is finished; start a new one.',
+      nothingToApply: 'Choose at least one monitor or the status page.',
+      stale:
+        'A service in the proposal no longer exists; ask the agent for a new proposal.',
+      notFound: 'This setup does not exist.',
+      failed: 'The request failed. Try again.',
+    },
+  },
   start: {
     title: 'Get started with NocoMonitor',
     description:
@@ -660,8 +803,9 @@ const monitoringEnUS = {
       },
       monitor: {
         title: 'Monitor your own service',
-        description: 'Add a health check for something you run.',
-        action: 'Add a monitor',
+        description:
+          'Give the agent your address; it finds the right check and sets it up.',
+        action: 'Add with AI',
       },
       drill: {
         title: 'Run a drill',

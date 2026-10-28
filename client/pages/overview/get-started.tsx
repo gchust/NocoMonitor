@@ -35,7 +35,7 @@ import {
 
 const STEP_LINKS = {
   agent: { to: '/ai', state: undefined },
-  monitor: { to: '/monitors', state: { create: true } },
+  monitor: { to: '/monitors', state: { askAi: true } },
 } as const;
 
 /**

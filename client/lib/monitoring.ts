@@ -307,6 +307,7 @@ export type InvestigationStepKind =
   | 'code'
   | 'diagnose'
   | 'remediate'
+  | 'reply'
   | 'command';
 
 /** The classified steps of an incident's latest diagnosis run (`GET /api/incidents/:id/aiActivity`). */
@@ -499,4 +500,84 @@ export function groupIncidents(
       incident,
       members: members.get(incident.id) ?? [],
     }));
+}
+
+/** What a person sets up by talking to an agent. */
+export type SetupKind = 'monitors' | 'statusPage';
+export type SetupState =
+  'queued' | 'running' | 'replied' | 'failed' | 'applied';
+
+export interface SetupQuestion {
+  id: string;
+  text: string;
+  options: string[];
+}
+
+export interface ProposedService {
+  key: string;
+  existingId: string | null;
+  name: string;
+  description: string | null;
+  repoUrl: string | null;
+}
+
+export interface ProposedMonitor {
+  service: string;
+  name: string;
+  type: MonitorType;
+  url: string;
+  method: string;
+  expectedStatus: string;
+  keyword: string | null;
+  jsonPath: string | null;
+  jsonExpected: string | null;
+  intervalSec: number;
+  timeoutMs: number;
+  degradedLatencyMs: number | null;
+  autoDiagnose: boolean;
+  note: string | null;
+}
+
+export interface SetupProposal {
+  services: ProposedService[];
+  monitors: ProposedMonitor[];
+  statusPage: {
+    title: string;
+    slug: string;
+    description: string | null;
+    services: string[];
+  } | null;
+}
+
+export interface SetupTurn {
+  id: string;
+  role: 'user' | 'agent';
+  at: string;
+  text: string;
+  questions: SetupQuestion[];
+  proposal: SetupProposal | null;
+  runId: string | null;
+}
+
+/** A conversation with the agent about what to monitor (`GET /api/monitoringSetups/:id`). */
+export interface Setup {
+  id: string;
+  kind: SetupKind;
+  state: SetupState;
+  runId: string | null;
+  turns: SetupTurn[];
+  result: {
+    serviceIds: string[];
+    monitorIds: string[];
+    statusPageId: string | null;
+    chosen: { monitors: number[]; statusPage: boolean };
+  } | null;
+  createdByName: string | null;
+  createdAt: string;
+  appliedAt: string | null;
+}
+
+/** The steps of the run answering a setup's latest message (`GET /api/monitoringSetups/:id/activity`). */
+export interface SetupActivity extends Omit<InvestigationActivity, 'status'> {
+  status: SetupState;
 }

@@ -1,5 +1,6 @@
 import type {
   Agents,
+  CallerIdentity,
   SubjectAssembly,
   SubjectDir,
 } from '@nocobase/app-plugin-agents/server/tokens';
@@ -31,7 +32,11 @@ export const INCIDENT_SUBJECT = 'nocomonitorIncident';
 export const INCIDENT_READ = 'nocomonitor.incidents/read';
 export const INCIDENT_DIAGNOSE = 'nocomonitor.incidents/diagnose';
 export const INCIDENT_REMEDIATE = 'nocomonitor.incidents/remediate';
-const ACTIONS = [INCIDENT_READ, INCIDENT_DIAGNOSE, INCIDENT_REMEDIATE] as const;
+export const INCIDENT_ACTIONS = [
+  INCIDENT_READ,
+  INCIDENT_DIAGNOSE,
+  INCIDENT_REMEDIATE,
+] as const;
 
 const ns = 'nocomonitor';
 const text = (key: string) => ({ key: `monitoring.agents.${key}`, ns });
@@ -46,6 +51,7 @@ export type InvestigationStepKind =
   | 'code'
   | 'diagnose'
   | 'remediate'
+  | 'reply'
   | 'command';
 
 export interface InvestigationStep {
@@ -122,6 +128,10 @@ function classifyCommand(command: string): InvestigationStepKind {
   if (/\bincident\s+remediate\b/.test(command)) return 'remediate';
   if (/\bincident\s+probe\b/.test(command)) return 'probe';
   if (/\bincident\s+context\b/.test(command)) return 'context';
+  // A setup run reads the configuration, tries a monitor from where NocoMonitor probes, and answers the person.
+  if (/\bsetup\s+reply\b/.test(command)) return 'reply';
+  if (/\bsetup\s+try\b/.test(command)) return 'probe';
+  if (/\bsetup\s+context\b/.test(command)) return 'context';
   if (/(^|[\s(])(curl|wget|http)\s/.test(command)) return 'request';
   // Writing a draft (`cat > d.json`) is not reading anything.
   if (/^cat\s*>/.test(command)) return 'command';
@@ -255,6 +265,36 @@ export function investigationSteps(
   }));
 }
 
+/** When a run ran, on which model, and its steps: see `investigationSteps`. Throws when the run does not exist. */
+export async function readRunSteps(
+  agents: Agents,
+  runId: string,
+): Promise<
+  Pick<InvestigationActivity, 'startedAt' | 'finishedAt' | 'model' | 'steps'>
+> {
+  const run = await agents.runs.get(runId);
+  const events: {
+    seq: number;
+    at: string;
+    type: string;
+    tool?: string;
+    input?: unknown;
+  }[] = [];
+  let after = 0;
+  while (events.length < MAX_ACTIVITY_EVENTS) {
+    const page = await agents.runs.events(run.id, after, 200, ['toolUse']);
+    events.push(...page.events);
+    if (page.events.length < 200 || page.lastSeq <= after) break;
+    after = page.lastSeq;
+  }
+  return {
+    startedAt: run.startedAt,
+    finishedAt: run.finishedAt,
+    model: run.model,
+    steps: investigationSteps(events),
+  };
+}
+
 export class DiagnosisUnavailableError extends Error {
   constructor(
     readonly reason:
@@ -311,28 +351,6 @@ export class IncidentAgents {
           defaultOn: true,
         },
       ]),
-      // `defaultOn` only marks the catalog; the defaults are what every agent discovered from a runner is given, so any
-      // of them can diagnose an incident. The gate below still limits each action to its own incident run.
-      this.agents.agents.setDefaults(() => ({
-        instructions: null,
-        actions: [INCIDENT_READ, INCIDENT_DIAGNOSE, INCIDENT_REMEDIATE],
-      })),
-      this.agents.gate.set({
-        // The incident commands belong to a diagnosis run, on its own incident, with the actions its agent was given.
-        // People reach incidents through the pages and their API instead.
-        allowed: async (identity) => {
-          const run = identity.run?.run;
-          if (identity.kind !== 'run' || run?.subjectKind !== INCIDENT_SUBJECT)
-            return new Set<string>();
-          if (!(await this.monitoring.getIncident(run.subjectId)))
-            return new Set<string>();
-          return new Set(
-            ACTIONS.filter((action) =>
-              identity.agent?.actions.includes(action),
-            ),
-          );
-        },
-      }),
       this.agents.subjects.register({
         kind: INCIDENT_SUBJECT,
         title: text('subject'),
@@ -388,6 +406,17 @@ export class IncidentAgents {
       }),
     ];
     return () => cleanups.forEach((cleanup) => cleanup());
+  }
+
+  /** The incident commands belong to a diagnosis run, on its own incident, with the actions its agent was given. */
+  async allowedActions(identity: CallerIdentity): Promise<string[]> {
+    const run = identity.run?.run;
+    if (identity.kind !== 'run' || run?.subjectKind !== INCIDENT_SUBJECT)
+      return [];
+    if (!(await this.monitoring.getIncident(run.subjectId))) return [];
+    return INCIDENT_ACTIONS.filter((action) =>
+      identity.agent?.actions.includes(action),
+    );
   }
 
   /** Wakes the diagnosis agent on an incident, as the person configured for AI work (or `actorUserId` for a person). */
@@ -503,29 +532,9 @@ export class IncidentAgents {
     };
     if (!incident.aiRunId) return none;
     try {
-      const run = await this.agents.runs.get(incident.aiRunId);
-      const events: {
-        seq: number;
-        at: string;
-        type: string;
-        tool?: string;
-        input?: unknown;
-      }[] = [];
-      let after = 0;
-      while (events.length < MAX_ACTIVITY_EVENTS) {
-        const page = await this.agents.runs.events(run.id, after, 200, [
-          'toolUse',
-        ]);
-        events.push(...page.events);
-        if (page.events.length < 200 || page.lastSeq <= after) break;
-        after = page.lastSeq;
-      }
       return {
         ...none,
-        startedAt: run.startedAt,
-        finishedAt: run.finishedAt,
-        model: run.model,
-        steps: investigationSteps(events),
+        ...(await readRunSteps(this.agents, incident.aiRunId)),
       };
     } catch (error) {
       // A run the Agents plugin no longer has has no steps to show. A queued diagnosis may still hold the id of its

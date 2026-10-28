@@ -53,8 +53,10 @@ describe('app client routes', () => {
     // The landing page and the inbox opted out of page authorization, so they are reachable by every signed-in user.
     // Every monitoring page is the one `monitoring` settings item; the settings pages keep their own grants.
     expect(pageAuthorizations(resolved.routes)).toEqual([
-      { name: 'inbox', authorizedAs: null },
+      { name: 'aiSetup', authorizedAs: 'settings:monitoring' },
       { name: 'home', authorizedAs: null },
+      { name: 'overviewIncident', authorizedAs: 'settings:monitoring' },
+      { name: 'inbox', authorizedAs: null },
       ...[
         'monitors',
         'monitor',
@@ -63,6 +65,7 @@ describe('app client routes', () => {
         'services',
         'statusPages',
         'aiDiagnosis',
+        'alerts',
       ].map((name) => ({
         name,
         authorizedAs: 'settings:monitoring',
@@ -119,11 +122,11 @@ describe('app client routes', () => {
     });
   });
 
-  it('keeps the inbox out of the application navigation', () => {
-    // The inbox is reached from the header's inbox button, so it deliberately declares no menu entry.
+  it('puts the inbox right after the overview', () => {
+    // Alert notifications land in the inbox, so it is a menu entry of its own, with the unread count beside it.
     expect(
       applicationRoutes[0].routes.find((route) => route.name === 'inbox'),
-    ).not.toHaveProperty('navigation');
+    ).toMatchObject({ navigation: { order: 1.5 } });
   });
 });
 

@@ -54,6 +54,7 @@ import type { List, Service, StatusPage } from '../../lib/monitoring.js';
 import { LoadError } from '../monitoring/components.js';
 import { errorText, fieldErrorsOf, useCanManage } from '../monitoring/utils.js';
 import { SwitchField } from '../monitors/monitor-form.js';
+import { AskAiButton } from '../setup/ask-ai-dialog.js';
 
 /** The public pages customers read, and which services each one shows. */
 export default function StatusPagesPage(): ReactElement {
@@ -100,10 +101,16 @@ export default function StatusPagesPage(): ReactElement {
         description={t('monitoring.statusPages.description')}
         actions={
           canManage ? (
-            <Button onClick={() => setEditing({ key: Date.now() })}>
-              <PlusIcon data-icon='inline-start' />
-              {t('monitoring.statusPages.add')}
-            </Button>
+            <>
+              <Button
+                variant='outline'
+                onClick={() => setEditing({ key: Date.now() })}
+              >
+                <PlusIcon data-icon='inline-start' />
+                {t('monitoring.statusPages.add')}
+              </Button>
+              <AskAiButton kind='statusPage' />
+            </>
           ) : null
         }
       />

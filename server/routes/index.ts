@@ -7,6 +7,7 @@ import { alertRoutes } from './alerts.js';
 import { drillRoutes } from './drill.js';
 import { monitoringRoutes } from './monitoring.js';
 import { publicStatusRoutes } from './public-status.js';
+import { setupRoutes } from './setups.js';
 
 const routes: readonly AppRouteContribution<Application>[] = [
   publicStatusRoutes,
@@ -15,6 +16,7 @@ const routes: readonly AppRouteContribution<Application>[] = [
   agentIncidentRoutes,
   drillRoutes,
   alertRoutes,
+  setupRoutes,
 ];
 
 export default routes;

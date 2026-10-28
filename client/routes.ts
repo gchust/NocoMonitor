@@ -123,6 +123,16 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
     path: '/status-pages',
   },
   {
+    // A conversation with the agent setting up monitors or a status page, reached from those pages; no menu entry of
+    // its own. Its API also requires `manage`.
+    auth: 'required',
+    authz: monitoringRead,
+    breadcrumb: { title: 'monitoring.setup.title' },
+    componentLoader: () => import('./pages/setup/index.js'),
+    name: 'aiSetup',
+    path: '/setup/:setupId',
+  },
+  {
     auth: 'required',
     authz: monitoringRead,
     componentLoader: () => import('./pages/ai/index.js'),
@@ -194,9 +204,7 @@ const appRoutes: AppClientRouteContribution = defineAppRoutes([
     path: '/status/:slug',
   },
   {
-    // Declares no navigation, so the application decides where its entry goes (for example a sidebar item with an
-    // unread badge). The plugin's API answers each person's own messages only, so the page needs no authorization of
-    // its own.
+    // The plugin's API answers each person's own messages only, so the page needs no authorization of its own.
     authz: 'skip',
     auth: 'required',
     componentLoader: () => import('./pages/inbox.js'),

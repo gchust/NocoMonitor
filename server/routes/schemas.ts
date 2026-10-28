@@ -545,6 +545,7 @@ export const InvestigationActivitySchema = z
           'code',
           'diagnose',
           'remediate',
+          'reply',
           'command',
         ]),
         targets: z.array(z.string()),
@@ -739,3 +740,234 @@ export const AlertDeliverySchema = z
     ),
   })
   .meta({ ref: 'NocoMonitorAlertDelivery' });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Setting up with an agent
+// ---------------------------------------------------------------------------------------------------------------------
+
+const SetupKindSchema = z.enum(['monitors', 'statusPage']);
+const SetupKey = z.string().trim().min(1).max(64);
+
+const SetupQuestionSchema = z.object({
+  id: z.string(),
+  text: z.string(),
+  options: z.array(z.string()),
+});
+
+const ProposedMonitorInputSchema = MonitorInputSchema.pick({
+  name: true,
+  type: true,
+  url: true,
+  method: true,
+  expectedStatus: true,
+  keyword: true,
+  jsonPath: true,
+  jsonExpected: true,
+  intervalSec: true,
+  timeoutMs: true,
+  degradedLatencyMs: true,
+  autoDiagnose: true,
+})
+  .extend({
+    service: SetupKey,
+    note: z.string().trim().max(1000).nullable().default(null),
+  })
+  .refine((monitor) => monitor.type !== 'keyword' || monitor.keyword, {
+    message: 'A keyword monitor needs its keyword.',
+    path: ['keyword'],
+  })
+  .refine((monitor) => monitor.type !== 'json' || monitor.jsonPath, {
+    message: 'A JSON monitor needs its jsonPath.',
+    path: ['jsonPath'],
+  });
+
+/** What the agent proposes; every monitor and the status page name their services by the proposal's own keys. */
+export const SetupProposalInputSchema = z
+  .strictObject({
+    services: z
+      .array(
+        z.strictObject({
+          key: SetupKey,
+          existingId: Id.nullable().default(null),
+          name: z.string().trim().min(1).max(255),
+          description: z.string().trim().max(5000).nullable().default(null),
+          repoUrl: z
+            .url({ protocol: /^https?$/ })
+            .max(512)
+            .nullable()
+            .default(null),
+        }),
+      )
+      .max(50)
+      .default([]),
+    monitors: z.array(ProposedMonitorInputSchema).max(50).default([]),
+    statusPage: z
+      .strictObject({
+        title: z.string().trim().min(1).max(255),
+        slug: Slug,
+        description: z.string().trim().max(5000).nullable().default(null),
+        services: z.array(SetupKey).min(1).max(200),
+      })
+      .nullable()
+      .default(null),
+  })
+  .superRefine((proposal, context) => {
+    const keys = new Set(proposal.services.map((service) => service.key));
+    if (keys.size !== proposal.services.length)
+      context.addIssue({
+        code: 'custom',
+        message: 'Each service needs its own key.',
+        path: ['services'],
+      });
+    proposal.monitors.forEach((monitor, index) => {
+      if (!keys.has(monitor.service))
+        context.addIssue({
+          code: 'custom',
+          message: `No service has the key "${monitor.service}".`,
+          path: ['monitors', index, 'service'],
+        });
+    });
+    proposal.statusPage?.services.forEach((key, index) => {
+      if (!keys.has(key))
+        context.addIssue({
+          code: 'custom',
+          message: `No service has the key "${key}".`,
+          path: ['statusPage', 'services', index],
+        });
+    });
+    if (!proposal.monitors.length && !proposal.statusPage)
+      context.addIssue({
+        code: 'custom',
+        message: 'Propose at least one monitor or a status page.',
+        path: ['monitors'],
+      });
+  });
+
+/** The agent's answer to the person's latest message: always a message, then questions, a proposal, or both. */
+export const SetupReplyInputSchema = z.strictObject({
+  message: z.string().trim().min(1).max(4000),
+  questions: z
+    .array(
+      z.strictObject({
+        text: z.string().trim().min(1).max(500),
+        options: z.array(z.string().trim().min(1).max(200)).max(6).default([]),
+      }),
+    )
+    .max(5)
+    .default([]),
+  proposal: SetupProposalInputSchema.nullable().default(null),
+});
+
+/** A monitor the agent wants to check from where NocoMonitor probes, before proposing it. Nothing is saved. */
+export const SetupTryInputSchema = MonitorInputSchema.pick({
+  type: true,
+  url: true,
+  method: true,
+  expectedStatus: true,
+  keyword: true,
+  jsonPath: true,
+  jsonExpected: true,
+  timeoutMs: true,
+  degradedLatencyMs: true,
+});
+
+export const SetupParams = z.object({ setupId: Id });
+
+export const SetupInputSchema = z.strictObject({
+  kind: SetupKindSchema,
+  text: z.string().trim().min(1).max(4000),
+  language: DiagnosisLanguageSchema,
+});
+
+export const SetupMessageInputSchema = z.strictObject({
+  text: z.string().trim().min(1).max(4000),
+});
+
+export const SetupApplyInputSchema = z.strictObject({
+  /** Indexes into the proposal's monitors: the ones to create. */
+  monitors: z.array(z.number().int().min(0)).max(50),
+  statusPage: z.boolean(),
+});
+
+const ProposalSchema = z.object({
+  services: z.array(
+    z.object({
+      key: z.string(),
+      existingId: z.string().nullable(),
+      name: z.string(),
+      description: z.string().nullable(),
+      repoUrl: z.string().nullable(),
+    }),
+  ),
+  monitors: z.array(
+    z.object({
+      service: z.string(),
+      name: z.string(),
+      type: z.enum(['http', 'keyword', 'json']),
+      url: z.string(),
+      method: z.string(),
+      expectedStatus: z.string(),
+      keyword: z.string().nullable(),
+      jsonPath: z.string().nullable(),
+      jsonExpected: z.string().nullable(),
+      intervalSec: z.number(),
+      timeoutMs: z.number(),
+      degradedLatencyMs: z.number().nullable(),
+      autoDiagnose: z.boolean(),
+      note: z.string().nullable(),
+    }),
+  ),
+  statusPage: z
+    .object({
+      title: z.string(),
+      slug: z.string(),
+      description: z.string().nullable(),
+      services: z.array(z.string()),
+    })
+    .nullable(),
+});
+
+export const SetupSchema = z
+  .object({
+    id: z.string(),
+    kind: SetupKindSchema,
+    state: z.enum(['queued', 'running', 'replied', 'failed', 'applied']),
+    runId: z.string().nullable(),
+    language: DiagnosisLanguageSchema,
+    turns: z.array(
+      z.object({
+        id: z.string(),
+        role: z.enum(['user', 'agent']),
+        at: Time,
+        text: z.string(),
+        questions: z.array(SetupQuestionSchema),
+        proposal: ProposalSchema.nullable(),
+        runId: z.string().nullable(),
+      }),
+    ),
+    result: z
+      .object({
+        serviceIds: z.array(z.string()),
+        monitorIds: z.array(z.string()),
+        statusPageId: z.string().nullable(),
+        chosen: z.object({
+          monitors: z.array(z.number().int()),
+          statusPage: z.boolean(),
+        }),
+      })
+      .nullable(),
+    createdById: z.string(),
+    createdByName: z.string().nullable(),
+    createdAt: Time,
+    updatedAt: Time,
+    appliedAt: NullableTime,
+  })
+  .meta({ ref: 'NocoMonitorSetup' });
+
+export const SetupActivitySchema = InvestigationActivitySchema.extend({
+  status: z.enum(['queued', 'running', 'replied', 'failed', 'applied']),
+}).meta({ ref: 'NocoMonitorSetupActivity' });
+
+export const AgentSetupContextSchema = z
+  .record(z.string(), z.unknown())
+  .meta({ ref: 'NocoMonitorAgentSetupContext' });

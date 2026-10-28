@@ -115,10 +115,46 @@ function LiveInvestigation({
   readonly data: InvestigationActivity | undefined;
 }): ReactElement {
   const { t } = useTranslation();
-  const steps = data?.steps ?? [];
+  return (
+    <LiveSteps
+      title={t('monitoring.ai.activity.live')}
+      waiting={
+        incident.aiState === 'queued'
+          ? t('monitoring.ai.activity.queued')
+          : null
+      }
+      starting={t('monitoring.ai.activity.starting')}
+      steps={data?.steps ?? []}
+      startedAt={data?.startedAt ?? null}
+      label={(kind, now) =>
+        t(`monitoring.ai.activity.${now ? 'now' : 'kind'}.${kind}`)
+      }
+    />
+  );
+}
+
+/**
+ * An agent at work, live: how long it has been at it, the steps it took, and the one it is on. `waiting` replaces the
+ * current step while no runner has taken the work; `label` names a step, as done or as going on now.
+ */
+export function LiveSteps({
+  title,
+  waiting,
+  starting,
+  steps,
+  startedAt,
+  label,
+}: {
+  readonly title: string;
+  readonly waiting: string | null;
+  readonly starting: string;
+  readonly steps: readonly InvestigationStep[];
+  readonly startedAt: string | null;
+  readonly label: (kind: InvestigationStep['kind'], now: boolean) => string;
+}): ReactElement {
+  const { t } = useTranslation();
   const done = steps.slice(0, -1);
   const current = steps.at(-1);
-  const startedAt = data?.startedAt ?? null;
   const now = useNow(startedAt !== null);
 
   return (
@@ -128,7 +164,7 @@ function LiveInvestigation({
           <span className='absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-60' />
           <span className='relative inline-flex size-2.5 rounded-full bg-primary' />
         </span>
-        {t('monitoring.ai.activity.live')}
+        {title}
         {startedAt ? (
           <span className='font-normal text-muted-foreground tabular-nums'>
             ·{' '}
@@ -146,7 +182,7 @@ function LiveInvestigation({
           >
             <CheckIcon className='mt-0.5 size-4 shrink-0 text-(--status-success)' />
             <span className='min-w-0'>
-              {t(`monitoring.ai.activity.kind.${step.kind}`)}
+              {label(step.kind, false)}
               <StepTargets step={step} className='ml-1.5' />
             </span>
           </li>
@@ -154,16 +190,15 @@ function LiveInvestigation({
         <li className='flex items-start gap-2 font-medium' aria-live='polite'>
           <Spinner className='mt-0.5 size-4 shrink-0 text-primary' />
           <span className='min-w-0'>
-            {incident.aiState === 'queued' ? (
-              t('monitoring.ai.activity.queued')
-            ) : current ? (
-              <>
-                {t(`monitoring.ai.activity.now.${current.kind}`)}
-                <StepTargets step={current} className='ml-1.5' />
-              </>
-            ) : (
-              t('monitoring.ai.activity.starting')
-            )}
+            {waiting ??
+              (current ? (
+                <>
+                  {label(current.kind, true)}
+                  <StepTargets step={current} className='ml-1.5' />
+                </>
+              ) : (
+                starting
+              ))}
           </span>
         </li>
       </ol>
