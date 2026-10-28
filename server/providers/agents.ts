@@ -58,6 +58,19 @@ export default class AgentsIntegrationProvider extends ServiceProvider<Applicati
     return Promise.resolve();
   }
 
+  public override async start(): Promise<void> {
+    if (!this.app.container.has(agentsToken)) return;
+    // Agents added before these defaults existed, or before an action was added to them, get them now.
+    const changed = await this.app.container
+      .resolve(agentsToken)
+      .agents.applyDefaults({ preserveInstructions: true });
+    if (changed)
+      this.app.container
+        .resolve(loggingToken)
+        .getLogger('agents')
+        .info({ changed }, 'Gave agents the incident actions');
+  }
+
   public override shutdown(): Promise<void> {
     for (const cleanup of this.cleanups.splice(0)) cleanup();
     return Promise.resolve();

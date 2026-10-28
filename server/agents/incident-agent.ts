@@ -85,6 +85,12 @@ export class IncidentAgents {
           defaultOn: true,
         },
       ]),
+      // `defaultOn` only marks the catalog; the defaults are what every agent discovered from a runner is given, so any
+      // of them can diagnose an incident. The gate below still limits each action to its own incident run.
+      this.agents.agents.setDefaults(() => ({
+        instructions: null,
+        actions: [INCIDENT_READ, INCIDENT_DIAGNOSE, INCIDENT_REMEDIATE],
+      })),
       this.agents.gate.set({
         // The incident commands belong to a diagnosis run, on its own incident, with the actions its agent was given.
         // People reach incidents through the pages and their API instead.
@@ -366,7 +372,8 @@ export class IncidentAgents {
               ? service.repoUrl
               : `${service.repoUrl}.git`,
             defaultBranch: 'main',
-            branch: 'main',
+            // A run never works on the default branch, even only reading; this one is never pushed.
+            branch: `nocomonitor/incident-${incident.id}`,
             path: 'repository',
           },
         ]

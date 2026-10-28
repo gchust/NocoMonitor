@@ -133,8 +133,8 @@ importers:
         specifier: ^5.0.1
         version: 5.9.2(@sinclair/typebox@0.34.52)(@standard-schema/spec@1.1.0)(ajv-formats@2.1.1(ajv@8.20.0))(ajv@8.20.0)(react-hook-form@7.91.0(@types/react@19.3.0)(react@19.3.1))(zod@4.6.7)
       '@nocobase/agent-runner':
-        specifier: 0.1.0-beta.15
-        version: 0.1.0-beta.15(@anthropic-ai/sdk@1.3.0(zod@4.6.7))(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))
+        specifier: 0.1.0-beta.20
+        version: 0.1.0-beta.20(@anthropic-ai/sdk@1.3.0(zod@4.6.7))(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))
       '@nocobase/app-cli-client':
         specifier: 0.1.0-beta.13
         version: 0.1.0-beta.13
@@ -1649,8 +1649,8 @@ packages:
     resolution: {integrity: sha512-PWdmlGpFAluNC87WAHcDv6qFpOOvcOp4GqMnaqYvcfbcQbHVm0xsYgGG1xDa4poMSTV4Igpe2mzt4k/3haNl8g==}
     engines: {node: '>=24.0.0'}
 
-  '@nocobase/agent-runner@0.1.0-beta.15':
-    resolution: {integrity: sha512-X/zYb5eyBhpNSqC1tGju8pJU+sIehAfEaI9MiLYO1uSP776N2EibZp9b4dmbFR3IokEwzHb1ylCAS0XQ8/OgWg==}
+  '@nocobase/agent-runner@0.1.0-beta.20':
+    resolution: {integrity: sha512-Ds+1tAmp+81+3bTbrU/NPX8kzw8xTFWN0QP3v3slv7BIuFmI87cvLwbBcYc8FjepVRlpTdDW1M5iqFg8Uzzpog==}
     engines: {node: '>=24.0.0'}
     hasBin: true
 
@@ -8620,11 +8620,12 @@ snapshots:
       '@nocobase/acp-bridge': 1.0.0-beta.4
       zod: 4.6.7
 
-  '@nocobase/agent-runner@0.1.0-beta.15(@anthropic-ai/sdk@1.3.0(zod@4.6.7))(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))':
+  '@nocobase/agent-runner@0.1.0-beta.20(@anthropic-ai/sdk@1.3.0(zod@4.6.7))(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))':
     dependencies:
       '@anthropic-ai/claude-agent-sdk': 0.3.285(@anthropic-ai/sdk@1.3.0(zod@4.6.7))(@modelcontextprotocol/sdk@1.32.2(zod@4.6.7))(zod@4.6.7)
-      '@nocobase/agent-protocol': 0.1.0-beta.12
-      '@nocobase/app-cli-client': 0.1.0-beta.13
+      '@nocobase/acp-bridge': 1.0.0-beta.4
+      '@nocobase/agent-protocol': 0.1.0-beta.15
+      '@nocobase/app-cli-client': 0.1.0-beta.16
       '@nocobase/cli-envelope': 0.1.0-beta.1
       '@oclif/core': 4.14.0
       pnpm: 11.7.0
