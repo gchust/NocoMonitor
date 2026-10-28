@@ -114,6 +114,8 @@ export interface Incident {
   status: IncidentStatus;
   severity: IncidentSeverity;
   source: 'auto' | 'manual';
+  /** The incident this one failed together with, which leads the group; null when it leads or stands alone. */
+  groupId: string | null;
   publicVisible: boolean;
   startedAt: string;
   resolvedAt: string | null;
@@ -456,4 +458,33 @@ export function downRuns(checks: readonly Check[]): [number, number][] {
   }
   if (start !== null) runs.push([start, last]);
   return runs.map(([from, to]) => [from, Math.max(to, from + MIN_RUN_MS)]);
+}
+
+/** An incident with the incidents that joined its group, as lists show them: one event, one entry. */
+export interface IncidentGroup {
+  incident: Incident;
+  members: Incident[];
+}
+
+/**
+ * Folds the incidents that joined a group into the entry of the incident leading it, keeping the list's order. An
+ * incident whose lead is not in the list keeps an entry of its own.
+ */
+export function groupIncidents(
+  incidents: readonly Incident[],
+): IncidentGroup[] {
+  const ids = new Set(incidents.map((incident) => incident.id));
+  const members = new Map<string, Incident[]>();
+  for (const incident of incidents)
+    if (incident.groupId && ids.has(incident.groupId))
+      members.set(incident.groupId, [
+        ...(members.get(incident.groupId) ?? []),
+        incident,
+      ]);
+  return incidents
+    .filter((incident) => !incident.groupId || !ids.has(incident.groupId))
+    .map((incident) => ({
+      incident,
+      members: members.get(incident.id) ?? [],
+    }));
 }

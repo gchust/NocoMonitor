@@ -184,6 +184,8 @@ export interface IncidentRecord {
   status: IncidentStatus;
   severity: IncidentSeverity;
   source: 'auto' | 'manual';
+  /** The incident this one failed together with, which leads the group; null when it leads or stands alone. */
+  groupId: string | null;
   publicVisible: boolean;
   startedAt: Date;
   resolvedAt: Date | null;

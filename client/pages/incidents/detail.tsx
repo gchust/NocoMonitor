@@ -3,6 +3,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import {
   CheckIcon,
   CircleCheckIcon,
+  LayersIcon,
   PencilIcon,
   SparklesIcon,
   XIcon,
@@ -81,6 +82,15 @@ interface IncidentDetail {
   service: Service | null;
   monitor: Monitor | null;
   updates: IncidentUpdate[];
+  /** The incident leading this one's group (null when this one leads or stands alone), and those that joined it. */
+  group: { lead: Incident | null; members: GroupedIncident[] };
+}
+
+interface GroupedIncident {
+  id: string;
+  title: string;
+  status: IncidentStatus;
+  monitorName: string | null;
 }
 
 export default function IncidentDetailPage(): ReactElement {
@@ -94,6 +104,22 @@ export default function IncidentDetailPage(): ReactElement {
   });
   const data = detail.data?.data;
   const incident = data?.incident;
+  // An incident that joined a group is diagnosed with the one leading it: its AI side is the lead's.
+  const lead = data?.group.lead ?? null;
+  const diagnosed: Incident | undefined =
+    incident && lead
+      ? {
+          ...incident,
+          aiState: lead.aiState,
+          aiRunId: lead.aiRunId,
+          aiSummary: lead.aiSummary,
+          aiRootCause: lead.aiRootCause,
+          aiConfidence: lead.aiConfidence,
+          aiVerdict: lead.aiVerdict,
+          aiSuggestedActions: lead.aiSuggestedActions,
+          aiUpdatedAt: lead.aiUpdatedAt,
+        }
+      : incident;
 
   // The fixes are read here, not in their panel: the automatic response card needs them too.
   const fixes = useApiData<{ data: RemediationOptions }>(
@@ -107,7 +133,7 @@ export default function IncidentDetailPage(): ReactElement {
   );
   // The next step that waits on the viewer, which the response card offers as the page's primary action.
   const nextStep =
-    !canManage || !incident || incident.status === 'resolved'
+    !canManage || !incident || incident.status === 'resolved' || lead
       ? null
       : pendingFix
         ? 'approval'
@@ -194,8 +220,14 @@ export default function IncidentDetailPage(): ReactElement {
               </Fact>
             </dl>
 
+            <GroupCard
+              lead={lead}
+              members={data.group.members}
+              resolved={incident.status === 'resolved'}
+            />
+
             <ResponseCard
-              incident={incident}
+              incident={diagnosed ?? incident}
               monitorId={data.monitor?.id ?? null}
               fixes={fixOptions}
               pendingFix={pendingFix ?? null}
@@ -207,8 +239,9 @@ export default function IncidentDetailPage(): ReactElement {
             <div className='grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]'>
               <div className='space-y-6'>
                 <AiDiagnosisCard
-                  incident={incident}
-                  canManage={canManage}
+                  incident={diagnosed ?? incident}
+                  // The lead's diagnosis is asked for on the lead's page.
+                  canManage={canManage && !lead}
                   diagnosis={diagnosis}
                 />
                 {fixOptions ? (
@@ -243,6 +276,78 @@ export default function IncidentDetailPage(): ReactElement {
         ) : null}
       </PageContainer>
     </RouteChildPage>
+  );
+}
+
+/**
+ * The incidents opened together with this one: on the incident leading the group, those that joined it; on one that
+ * joined, the incident it joined, which carries the diagnosis and the alerts.
+ */
+function GroupCard({
+  lead,
+  members,
+  resolved,
+}: {
+  readonly lead: Incident | null;
+  readonly members: readonly GroupedIncident[];
+  readonly resolved: boolean;
+}): ReactElement | null {
+  const { t } = useTranslation();
+  if (lead)
+    return (
+      <div className='flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center'>
+        <LayersIcon className='size-5 shrink-0 text-primary' />
+        <p className='min-w-0 flex-1 text-sm'>
+          {t('monitoring.group.joined', { incident: lead.title })}
+        </p>
+        <Button
+          variant='outline'
+          size='sm'
+          nativeButton={false}
+          render={<Link to={`../${lead.id}`} relative='path' />}
+        >
+          {t('monitoring.group.openLead')}
+        </Button>
+      </div>
+    );
+  if (!members.length) return null;
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className='flex items-center gap-2'>
+          <LayersIcon className='size-5 text-primary' />
+          {t('monitoring.group.title', { count: members.length })}
+        </CardTitle>
+        <CardDescription>
+          {t(
+            resolved
+              ? 'monitoring.group.descriptionResolved'
+              : 'monitoring.group.description',
+          )}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <ul className='-mx-2 flex flex-col'>
+          {members.map((member) => (
+            <li key={member.id}>
+              <Link
+                to={`../${member.id}`}
+                relative='path'
+                className='flex flex-wrap items-center gap-2 rounded-lg px-2 py-2 text-sm transition-colors hover:bg-muted'
+              >
+                <IncidentStatusBadge status={member.status} />
+                <span className='font-medium'>{member.title}</span>
+                {member.monitorName ? (
+                  <span className='text-muted-foreground'>
+                    {member.monitorName}
+                  </span>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }
 

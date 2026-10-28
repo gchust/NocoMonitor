@@ -163,6 +163,8 @@ const monitoringEnUS = {
     downDegraded: '{{down}} down · {{degraded}} degraded',
     openIncidents: 'Open incidents',
     incidentsHint: 'Opened automatically when a monitor goes down',
+    incidentsGrouped_one: '{{count}} monitor incident, grouped by outage',
+    incidentsGrouped_other: '{{count}} monitor incidents, grouped by outage',
     medianLatency: 'Median response time',
     latencyHint: 'Latest check of each monitor',
     uptime90: 'Uptime, 90 days',
@@ -173,6 +175,20 @@ const monitoringEnUS = {
     noServicesHint: 'Add a service, then the monitors that probe it.',
     lastChecked: 'Last checked {{when}}',
     openPublicPage: 'Public status page',
+  },
+  group: {
+    together_one: '{{count}} more monitor failed at the same time:',
+    together_other: '{{count}} more monitors failed at the same time:',
+    separator: ', ',
+    title_one: 'Failed at the same time ({{count}})',
+    title_other: 'Failed at the same time ({{count}})',
+    description:
+      'NocoMonitor treats them as one outage: the AI diagnoses them together and one alert goes out. Resolving this incident resolves them too.',
+    descriptionResolved:
+      'They failed together with this incident and count as one outage.',
+    joined:
+      'This incident happened together with “{{incident}}” and joined it: that incident carries the diagnosis and the alerts.',
+    openLead: 'Open that incident',
   },
   oncall: {
     title: {
@@ -602,6 +618,8 @@ const monitoringEnUS = {
     pastIncidents: 'Past incidents',
     noPastIncidents: 'No incidents reported.',
     showAll: 'Show all {{count}} incidents',
+    affected_one: 'Affected {{count}} component',
+    affected_other: 'Affected {{count}} components',
     blips_one:
       'Plus {{count}} brief disruption that recovered on its own within {{minutes}} minutes.',
     blips_other:

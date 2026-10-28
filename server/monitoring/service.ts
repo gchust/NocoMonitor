@@ -85,6 +85,17 @@ export interface UptimeDay {
 const SYSTEM: Actor = { type: 'system', id: null, name: 'NocoMonitor' };
 const PROBE_CONCURRENCY = 6;
 const DAY_MS = 86_400_000;
+/** How soon after an incident opens another monitor's failure still counts as the same event. */
+export const GROUP_WINDOW_MS = 10 * 60_000;
+
+/** The host a monitor checks, to tell monitors of one deployment apart from others; null when the URL is not one. */
+function hostOf(url: string): string | null {
+  try {
+    return new URL(url).host.toLowerCase();
+  } catch {
+    return null;
+  }
+}
 
 export function toDate(value: Date | string | null | undefined): Date | null {
   if (value === null || value === undefined) return null;
@@ -339,6 +350,7 @@ export class MonitoringService {
       if (next.status === 'down' && previous !== 'down') {
         if (!open) {
           openedIncident = await this.createIncident(conn, {
+            groupId: await this.groupFor(conn, monitor, checkedAt),
             serviceId: monitor.serviceId,
             monitorId,
             title: wording.downTitle(monitor.name),
@@ -457,6 +469,68 @@ export class MonitoringService {
     });
   }
 
+  /**
+   * The open incident a monitor failing now joins: the earliest probe-opened incident that leads a group (or stands
+   * alone), started within the grouping window, of the same service or of a monitor on the same host. Null when none
+   * is: the monitor's incident then leads a group of its own.
+   */
+  private async groupFor(
+    conn: DatabaseConnection,
+    monitor: MonitorRecord,
+    at: Date,
+  ): Promise<string | null> {
+    const candidates = await conn
+      .repository<IncidentRecord>('mnIncidents')
+      .findMany({
+        filter: (f) =>
+          f.and([
+            f.string('status').ne('resolved'),
+            f.string('source').eq('auto'),
+            f.string('groupId').empty(),
+            f
+              .date('startedAt')
+              .notBefore(new Date(at.getTime() - GROUP_WINDOW_MS)),
+          ]),
+        sort: (s) => s.field('startedAt').asc(),
+      });
+    const others = candidates.filter(
+      (incident) => incident.monitorId && incident.monitorId !== monitor.id,
+    );
+    if (!others.length) return null;
+    const monitors = new Map(
+      (
+        await conn.repository<MonitorRecord>('mnMonitors').findMany({
+          filter: (f) =>
+            f.or(
+              others.map((incident) => f.string('id').eq(incident.monitorId)),
+            ),
+        })
+      ).map((row) => [row.id, row]),
+    );
+    const host = hostOf(monitor.url);
+    const lead = others.find((incident) => {
+      const other = monitors.get(incident.monitorId!);
+      return (
+        incident.serviceId === monitor.serviceId ||
+        (host !== null && other !== undefined && hostOf(other.url) === host)
+      );
+    });
+    return lead?.id ?? null;
+  }
+
+  /** The incidents that joined `incidentId`'s group, oldest first. */
+  async listGroupMembers(
+    incidentId: string,
+    conn?: DatabaseConnection,
+  ): Promise<IncidentRecord[]> {
+    return (conn ?? this.db)
+      .repository<IncidentRecord>('mnIncidents')
+      .findMany({
+        filter: { groupId: incidentId },
+        sort: (s) => s.field('startedAt').asc(),
+      });
+  }
+
   async createIncident(
     conn: DatabaseConnection,
     input: {
@@ -470,6 +544,7 @@ export class MonitoringService {
       startedAt?: Date;
       publicVisible?: boolean;
       status?: IncidentStatus;
+      groupId?: string | null;
     },
   ): Promise<IncidentRecord> {
     const now = new Date();
@@ -485,6 +560,7 @@ export class MonitoringService {
           status,
           severity: input.severity,
           source: input.source,
+          groupId: input.groupId ?? null,
           publicVisible: input.publicVisible ?? true,
           startedAt: input.startedAt ?? now,
           resolvedAt: null,
@@ -606,8 +682,22 @@ export class MonitoringService {
           input.status,
           input,
         );
-        if (input.status === 'resolved')
+        if (input.status === 'resolved') {
           events.push({ type: 'incident.resolved', incident: updated });
+          // Resolving the incident that leads a group resolves the incidents that joined it, with the same update.
+          for (const member of await this.listGroupMembers(incidentId, conn)) {
+            if (member.status === 'resolved') continue;
+            events.push({
+              type: 'incident.resolved',
+              incident: await this.setIncidentStatus(
+                conn,
+                member,
+                'resolved',
+                input,
+              ),
+            });
+          }
+        }
         const update = await conn
           .repository<IncidentUpdateRecord>('mnIncidentUpdates')
           .findOne({

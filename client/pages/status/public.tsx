@@ -56,6 +56,8 @@ interface PublicStatus {
     severity: IncidentSeverity;
     startedAt: string;
     resolvedAt: string | null;
+    /** How many monitors' incidents this one stands for: more than 1 when it leads a group. */
+    affected: number;
     updates: {
       status: IncidentStatus | null;
       body: string;
@@ -262,6 +264,11 @@ function IncidentBlock({
       <div className='flex flex-wrap items-center gap-2'>
         <IncidentStatusBadge status={incident.status} />
         <h3 className='font-medium'>{incident.title}</h3>
+        {incident.affected > 1 ? (
+          <span className='text-sm text-muted-foreground'>
+            {t('monitoring.public.affected', { count: incident.affected })}
+          </span>
+        ) : null}
         <span className='ml-auto text-xs text-muted-foreground'>
           {formatDateTime(incident.startedAt, i18n.language)}
         </span>

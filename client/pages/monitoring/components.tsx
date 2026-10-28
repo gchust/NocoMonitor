@@ -1,6 +1,6 @@
 import { ApiClientError } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { CircleAlertIcon, SparklesIcon } from 'lucide-react';
+import { CircleAlertIcon, LayersIcon, SparklesIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
 import { StatusBadge } from '#components/status-badge';
@@ -195,6 +195,31 @@ export function FalseAlarmBadge({
       <SparklesIcon className='size-3' />
       {t('monitoring.ai.verdict.falseAlarmBadge')}
     </StatusBadge>
+  );
+}
+
+/** The incidents that joined a group, on the entry of the incident leading it. Nothing for an incident alone. */
+export function GroupedLine({
+  members,
+}: {
+  readonly members: readonly Pick<Incident, 'id' | 'title'>[];
+}): ReactElement | null {
+  const { t } = useTranslation();
+  if (!members.length) return null;
+  return (
+    <p className='flex items-start gap-1.5 text-sm text-muted-foreground'>
+      <LayersIcon className='mt-0.5 size-4 shrink-0 text-primary' />
+      <span className='min-w-0'>
+        <span className='font-medium text-foreground'>
+          {t('monitoring.group.together', { count: members.length })}
+        </span>{' '}
+        <span className='line-clamp-1'>
+          {members
+            .map((member) => member.title)
+            .join(t('monitoring.group.separator'))}
+        </span>
+      </span>
+    </p>
   );
 }
 

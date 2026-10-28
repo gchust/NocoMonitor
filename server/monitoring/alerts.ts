@@ -272,6 +272,12 @@ export class AlertService {
     const kind = EVENT_OF[event.type];
     if (!kind || !('incident' in event)) return null;
     const incident: IncidentRecord = event.incident;
+    // An incident that joined a group is told by the alerts of the incident that leads it: one event, one alert.
+    if (
+      incident.groupId &&
+      (event.type === 'incident.opened' || event.type === 'incident.resolved')
+    )
+      return null;
     const t = await this.ports.translator();
     const service = (await this.ports.serviceName(incident.serviceId)) ?? '';
     const values = { incident: incident.title, service };

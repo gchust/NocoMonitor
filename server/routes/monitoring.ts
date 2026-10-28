@@ -611,12 +611,32 @@ export const monitoringRoutes: AppApiRouteContribution<Application> =
             : Promise.resolve(null),
           service.listIncidentUpdates(incidentId),
         ]);
+        const lead = incident.groupId
+          ? await service.getIncident(incident.groupId)
+          : null;
+        const members = await service.listGroupMembers(lead?.id ?? incident.id);
+        const memberMonitors = await Promise.all(
+          members.map((member) =>
+            member.monitorId
+              ? service.getMonitor(member.monitorId)
+              : Promise.resolve(null),
+          ),
+        );
         return context.json({
           data: {
             incident,
             service: owner && masked(owner),
             monitor,
             updates,
+            group: {
+              lead,
+              members: members.map((member, index) => ({
+                id: member.id,
+                title: member.title,
+                status: member.status,
+                monitorName: memberMonitors[index]?.name ?? null,
+              })),
+            },
           },
         });
       },

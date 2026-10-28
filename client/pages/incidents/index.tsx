@@ -43,6 +43,7 @@ import { useApiData } from '../../hooks/use-api-data.js';
 import {
   formatDateTime,
   formatDuration,
+  groupIncidents,
   INCIDENT_SEVERITIES,
   type Incident,
   type IncidentSeverity,
@@ -51,6 +52,7 @@ import {
 } from '../../lib/monitoring.js';
 import {
   FalseAlarmBadge,
+  GroupedLine,
   IncidentStatusBadge,
   LoadError,
   SeverityBadge,
@@ -138,39 +140,44 @@ export default function IncidentsPage(): ReactElement {
           </Empty>
         ) : (
           <ul className='divide-y rounded-xl border'>
-            {incidents.data?.data.map((incident) => (
-              <li key={incident.id}>
-                <Link
-                  to={incident.id}
-                  className='block p-4 transition-colors hover:bg-muted/60'
-                >
-                  <div className='flex flex-wrap items-center gap-2'>
-                    <IncidentStatusBadge status={incident.status} />
-                    <SeverityBadge severity={incident.severity} />
-                    <FalseAlarmBadge incident={incident} />
-                    <span className='font-medium'>{incident.title}</span>
-                    <span className='ml-auto text-xs text-muted-foreground'>
-                      {serviceName.get(incident.serviceId)} ·{' '}
-                      {formatDateTime(incident.startedAt, i18n.language)} ·{' '}
-                      {formatDuration(
-                        incident.startedAt,
-                        incident.resolvedAt,
-                        i18n.language,
-                      )}
-                    </span>
-                  </div>
-                  {incident.aiSummary || incident.aiState !== 'none' ? (
-                    <p className='mt-2 flex items-start gap-1.5 text-sm text-muted-foreground'>
-                      <BotIcon className='mt-0.5 size-4 shrink-0' />
-                      <span className='line-clamp-2'>
-                        {incident.aiSummary ??
-                          t(`monitoring.ai.state.${incident.aiState}`)}
+            {groupIncidents(incidents.data?.data ?? []).map(
+              ({ incident, members }) => (
+                <li key={incident.id}>
+                  <Link
+                    to={incident.id}
+                    className='block p-4 transition-colors hover:bg-muted/60'
+                  >
+                    <div className='flex flex-wrap items-center gap-2'>
+                      <IncidentStatusBadge status={incident.status} />
+                      <SeverityBadge severity={incident.severity} />
+                      <FalseAlarmBadge incident={incident} />
+                      <span className='font-medium'>{incident.title}</span>
+                      <span className='ml-auto text-xs text-muted-foreground'>
+                        {serviceName.get(incident.serviceId)} ·{' '}
+                        {formatDateTime(incident.startedAt, i18n.language)} ·{' '}
+                        {formatDuration(
+                          incident.startedAt,
+                          incident.resolvedAt,
+                          i18n.language,
+                        )}
                       </span>
-                    </p>
-                  ) : null}
-                </Link>
-              </li>
-            ))}
+                    </div>
+                    <div className='mt-2 empty:hidden'>
+                      <GroupedLine members={members} />
+                    </div>
+                    {incident.aiSummary || incident.aiState !== 'none' ? (
+                      <p className='mt-2 flex items-start gap-1.5 text-sm text-muted-foreground'>
+                        <BotIcon className='mt-0.5 size-4 shrink-0' />
+                        <span className='line-clamp-2'>
+                          {incident.aiSummary ??
+                            t(`monitoring.ai.state.${incident.aiState}`)}
+                        </span>
+                      </p>
+                    ) : null}
+                  </Link>
+                </li>
+              ),
+            )}
           </ul>
         )}
 

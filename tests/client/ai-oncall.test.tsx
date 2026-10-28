@@ -25,6 +25,7 @@ import packageMetadata from '../../package.json' with { type: 'json' };
 import enUS from '../../client/locales/en-US.js';
 import {
   downRuns,
+  groupIncidents,
   type AiBriefing,
   type Check,
   type Incident,
@@ -41,6 +42,8 @@ let incident: Incident;
 let remediations: Remediation[];
 let rejectAnswer: () => unknown;
 let monitor: { id: string; name: string; status: string } | null;
+let group: { lead: Incident | null; members: unknown[] };
+let overviewIncidents: () => Incident[];
 
 const manage: AuthorizationSnapshot = {
   unrestricted: false,
@@ -62,13 +65,13 @@ const api = vi.fn(({ method, path }: ApiCall) => {
   if (method === 'GET' && path === 'authorization/permissions')
     return { data: permissions };
   if (method === 'GET' && path === 'statusOverview')
-    return { data: { services: [], incidents: [incident] } };
+    return { data: { services: [], incidents: overviewIncidents() } };
   if (method === 'GET' && path === 'statusPages') return { data: [] };
   if (method === 'GET' && path === 'monitoringAi/briefing')
     return { data: briefing };
   if (method === 'GET' && path === `incidents/${incident.id}`)
     return {
-      data: { incident, service: null, monitor, updates: [] },
+      data: { incident, service: null, monitor, updates: [], group },
     };
   if (method === 'GET' && path === `incidents/${incident.id}/remediations`)
     return { data: { level: 'approve', actions: [], remediations } };
@@ -178,6 +181,8 @@ beforeEach(() => {
   briefing = emptyBriefing();
   rejectAnswer = () => ({ data: null });
   monitor = null;
+  group = { lead: null, members: [] };
+  overviewIncidents = () => [incident];
   incident = {
     id: 'inc-1',
     serviceId: 'svc-1',
@@ -186,6 +191,7 @@ beforeEach(() => {
     status: 'investigating',
     severity: 'major',
     source: 'auto',
+    groupId: null,
     publicVisible: false,
     startedAt: '2026-10-27T10:00:00Z',
     resolvedAt: null,
@@ -514,5 +520,85 @@ describe('outage stretches on the latency chart', () => {
       [Date.parse(at(6)), Date.parse(at(7))],
     ]);
     expect(downRuns([check(0, 'up'), check(1, 'up')])).toEqual([]);
+  });
+});
+
+describe('incidents opened together', () => {
+  const member = (id: string, title: string): Incident => ({
+    ...incident,
+    id,
+    title,
+    groupId: 'inc-1',
+    aiState: 'none',
+    aiSummary: null,
+  });
+
+  it('folds the incidents that joined a group into the one leading it', () => {
+    const joined = member('inc-2', 'ITAM is down');
+    const orphan = { ...member('inc-3', 'Docs is down'), groupId: 'gone' };
+    expect(groupIncidents([incident, joined, orphan])).toEqual([
+      { incident, members: [joined] },
+      { incident: orphan, members: [] },
+    ]);
+  });
+
+  it('shows the group as one incident on the overview', async () => {
+    overviewIncidents = () => [
+      incident,
+      member('inc-2', 'ITAM is down'),
+      member('inc-3', 'Reach is down'),
+    ];
+    await renderAt('/');
+    expect(
+      await screen.findByText(
+        copy.group.together_other.replace('{{count}}', '2'),
+      ),
+    ).toBeVisible();
+    expect(screen.getByText('ITAM is down, Reach is down')).toBeVisible();
+    expect(screen.getAllByRole('link', { name: /ITAM is down/ })).toHaveLength(
+      1,
+    );
+  });
+
+  it('lists the members on the lead, and leads a member to the lead and its diagnosis', async () => {
+    group = {
+      lead: null,
+      members: [
+        {
+          id: 'inc-2',
+          title: 'ITAM is down',
+          status: 'investigating',
+          monitorName: 'ITAM health',
+        },
+      ],
+    };
+    await renderAt('/incidents/inc-1');
+    expect(
+      await screen.findByText(copy.group.title_one.replace('{{count}}', '1')),
+    ).toBeVisible();
+    expect(screen.getByRole('link', { name: /ITAM is down/ })).toHaveAttribute(
+      'href',
+      '/incidents/inc-2',
+    );
+  });
+
+  it('shows a member the lead’s diagnosis and no diagnosis of its own to ask for', async () => {
+    const lead = incident;
+    incident = member('inc-2', 'ITAM is down');
+    group = { lead, members: [] };
+    remediations = [];
+    await renderAt('/incidents/inc-2');
+    expect(
+      await screen.findByText(
+        copy.group.joined.replace('{{incident}}', 'API is down'),
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole('button', { name: copy.group.openLead }),
+    ).toHaveAttribute('href', '/incidents/inc-1');
+    expect(screen.getByText('The database pool is exhausted.')).toBeVisible();
+    expect(
+      screen.queryByRole('button', { name: copy.ai.diagnose }),
+    ).not.toBeInTheDocument();
   });
 });

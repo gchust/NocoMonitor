@@ -41,6 +41,7 @@ import {
   formatLatency,
   formatRelative,
   formatUptime,
+  groupIncidents,
   type AiBriefing,
   type DrillStatus,
   type Incident,
@@ -51,6 +52,7 @@ import {
 import {
   HealthBadge,
   FalseAlarmBadge,
+  GroupedLine,
   IncidentStatusBadge,
   LoadError,
   SeverityBadge,
@@ -181,6 +183,9 @@ export default function OverviewPage(): ReactElement {
   const open =
     data?.incidents.filter((incident) => incident.status !== 'resolved') ?? [];
   const openOwn = open.filter((incident) => !isDrill(incident.serviceId));
+  // Incidents opened together are one event: they count, and show, as the incident leading them.
+  const openGroups = groupIncidents(open);
+  const openEvents = groupIncidents(openOwn).length;
   const down = monitors.filter((monitor) => monitor.status === 'down').length;
   const degraded = monitors.filter(
     (monitor) => monitor.status === 'degraded',
@@ -296,9 +301,17 @@ export default function OverviewPage(): ReactElement {
           <Stat
             icon={<SirenIcon />}
             label={t('monitoring.overview.openIncidents')}
-            value={data ? String(openOwn.length) : undefined}
-            hint={data ? t('monitoring.overview.incidentsHint') : undefined}
-            tone={openOwn.length ? 'danger' : 'success'}
+            value={data ? String(openEvents) : undefined}
+            hint={
+              data
+                ? openEvents < openOwn.length
+                  ? t('monitoring.overview.incidentsGrouped', {
+                      count: openOwn.length,
+                    })
+                  : t('monitoring.overview.incidentsHint')
+                : undefined
+            }
+            tone={openEvents ? 'danger' : 'success'}
           />
           <Stat
             icon={<TimerIcon />}
@@ -334,10 +347,11 @@ export default function OverviewPage(): ReactElement {
                   {t('monitoring.overview.activeIncidents')}
                 </h2>
                 <ul className='flex flex-col gap-3'>
-                  {open.map((incident) => (
+                  {openGroups.map(({ incident, members }) => (
                     <li key={incident.id}>
                       <ActiveIncident
                         incident={incident}
+                        members={members}
                         pendingFix={pendingFixes.get(incident.id) ?? null}
                       />
                     </li>
@@ -454,9 +468,12 @@ export default function OverviewPage(): ReactElement {
 /** An open incident: its state, how long it lasts, how far the automatic response got, and the agent's conclusion. */
 function ActiveIncident({
   incident,
+  members,
   pendingFix,
 }: {
   readonly incident: Incident;
+  /** The incidents that failed together with this one and joined it. */
+  readonly members: readonly Incident[];
   readonly pendingFix: string | null;
 }): ReactElement {
   const { t, i18n } = useTranslation();
@@ -483,6 +500,7 @@ function ActiveIncident({
         </span>
       </div>
       <p className='font-medium'>{incident.title}</p>
+      <GroupedLine members={members} />
       <AiPipelineCompact steps={steps} />
       <p className='flex items-start gap-1.5 text-sm text-muted-foreground'>
         <BotIcon className='mt-0.5 size-4 shrink-0' />

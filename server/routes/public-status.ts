@@ -76,10 +76,23 @@ export const publicStatusRoutes: AppApiRouteContribution<Application> =
           new Date(incident.resolvedAt).getTime() -
             new Date(incident.startedAt).getTime() <
             BLIP_MS;
+        // Incidents opened together show as the one leading them, with how many parts of the services they touched.
+        const ids = new Set(overview.incidents.map((incident) => incident.id));
+        const joined = (incident: (typeof overview.incidents)[number]) =>
+          incident.groupId !== null && ids.has(incident.groupId);
+        const affected = new Map<string, number>();
+        for (const incident of overview.incidents)
+          if (joined(incident))
+            affected.set(
+              incident.groupId!,
+              (affected.get(incident.groupId!) ?? 1) + 1,
+            );
         const listed = overview.incidents.filter(
-          (incident) => !isBlip(incident),
+          (incident) => !isBlip(incident) && !joined(incident),
         );
-        const blips = overview.incidents.length - listed.length;
+        const blips = overview.incidents.filter(
+          (incident) => isBlip(incident) && !joined(incident),
+        ).length;
         const updates = await monitoring.listUpdatesFor(
           listed.map((incident) => incident.id),
           true,
@@ -122,6 +135,7 @@ export const publicStatusRoutes: AppApiRouteContribution<Application> =
               severity: incident.severity,
               startedAt: incident.startedAt,
               resolvedAt: incident.resolvedAt,
+              affected: affected.get(incident.id) ?? 1,
               updates: (updates.get(incident.id) ?? []).map((update) => ({
                 status: update.status,
                 body: update.body,

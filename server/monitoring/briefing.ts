@@ -107,7 +107,10 @@ export async function readBriefing(
       }),
     ]);
 
-  const opened = openedRows.filter((row) => row.serviceId !== excluded);
+  // An incident that joined a group is diagnosed with the one leading it: the group counts once.
+  const opened = openedRows.filter(
+    (row) => row.serviceId !== excluded && !row.groupId,
+  );
   const requested = requestedRows.filter((row) => row.serviceId !== excluded);
   // Updates carry no service: a drill's are told apart by its incidents, read only while a drill exists.
   const drillIncidents = new Set(

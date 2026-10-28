@@ -140,6 +140,7 @@ export const IncidentSchema = z
     status: IncidentStatusSchema,
     severity: IncidentSeveritySchema,
     source: z.enum(['auto', 'manual']),
+    groupId: z.string().nullable(),
     publicVisible: z.boolean(),
     startedAt: Time,
     resolvedAt: NullableTime,
@@ -210,11 +211,27 @@ export const MonitorDetailSchema = z.object({
   incidents: z.array(IncidentSchema),
 });
 
+/** One incident of a group, as the incident page lists it. */
+const GroupedIncidentSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  status: IncidentStatusSchema,
+  monitorName: z.string().nullable(),
+});
+
 export const IncidentDetailSchema = z.object({
   incident: IncidentSchema,
   service: ServiceSchema.nullable(),
   monitor: MonitorSchema.nullable(),
   updates: z.array(IncidentUpdateSchema),
+  /**
+   * The incidents opened together with this one. `lead` is the incident that leads the group, which the agent
+   * diagnoses, or null when this incident leads it (or stands alone); `members` are the incidents that joined it.
+   */
+  group: z.object({
+    lead: IncidentSchema.nullable(),
+    members: z.array(GroupedIncidentSchema),
+  }),
 });
 
 export const PublicStatusSchema = z
@@ -254,6 +271,8 @@ export const PublicStatusSchema = z
         severity: IncidentSeveritySchema,
         startedAt: Time,
         resolvedAt: NullableTime,
+        /** How many monitors' incidents this one stands for: 1, or the size of the group it leads. */
+        affected: z.number().int(),
         updates: z.array(
           z.object({
             status: IncidentStatusSchema.nullable(),

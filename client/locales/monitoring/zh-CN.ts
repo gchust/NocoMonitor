@@ -161,6 +161,8 @@ const monitoringZhCN: typeof monitoringEnUS = {
     downDegraded: '{{down}} 宕机 · {{degraded}} 降级',
     openIncidents: '未关闭事件',
     incidentsHint: '监控项宕机时自动创建',
+    incidentsGrouped_one: '{{count}} 个监控项事件，按故障合并',
+    incidentsGrouped_other: '{{count}} 个监控项事件，按故障合并',
     medianLatency: '响应时间中位数',
     latencyHint: '各监控项最近一次检查',
     uptime90: '90 天可用率',
@@ -171,6 +173,19 @@ const monitoringZhCN: typeof monitoringEnUS = {
     noServicesHint: '先添加服务，再为它添加监控项。',
     lastChecked: '最近检查于 {{when}}',
     openPublicPage: '公开状态页',
+  },
+  group: {
+    together_one: '同时失败的还有 {{count}} 个监控项：',
+    together_other: '同时失败的还有 {{count}} 个监控项：',
+    separator: '、',
+    title_one: '同时失败的监控项（{{count}}）',
+    title_other: '同时失败的监控项（{{count}}）',
+    description:
+      'NocoMonitor 把它们归为同一次故障：AI 一起诊断，只发一次告警。解决本事件会一并解决它们。',
+    descriptionResolved: '它们与本事件同时失败，被归为同一次故障。',
+    joined:
+      '这个事件与“{{incident}}”同时发生，已归入该事件：由它统一诊断和告警。',
+    openLead: '查看主事件',
   },
   oncall: {
     title: {
@@ -580,6 +595,8 @@ const monitoringZhCN: typeof monitoringEnUS = {
     pastIncidents: '历史事件',
     noPastIncidents: '没有已报告的事件。',
     showAll: '显示全部 {{count}} 个事件',
+    affected_one: '影响 {{count}} 个组件',
+    affected_other: '影响 {{count}} 个组件',
     blips_one: '另有 {{count}} 次短暂波动，在 {{minutes}} 分钟内自动恢复。',
     blips_other: '另有 {{count}} 次短暂波动，均在 {{minutes}} 分钟内自动恢复。',
     updated: '更新于 {{when}}',
