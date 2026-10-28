@@ -48,3 +48,7 @@ AI diagnosis runs on a runtime: a machine with Claude Code or Codex signed in. C
 ## Development
 
 NocoMonitor is a NocoBase 3 application: [AGENTS.md](AGENTS.md) is where a coding agent, or you, starts.
+
+## License
+
+[Apache License 2.0](LICENSE)

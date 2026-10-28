@@ -48,3 +48,7 @@ AI 诊断运行在运行环境上：一台已登录 Claude Code 或 Codex 的机
 ## 开发
 
 NocoMonitor 是一个 NocoBase 3 应用：编程 Agent 或你自己，都从 [AGENTS.md](../AGENTS.md) 开始。
+
+## 许可证
+
+[Apache License 2.0](../LICENSE)
