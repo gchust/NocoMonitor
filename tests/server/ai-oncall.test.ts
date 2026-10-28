@@ -10,6 +10,7 @@ import { databaseManagerToken, type DatabaseConnection } from '@nocobase/db';
 
 import {
   classifyToolUse,
+  describeToolUse,
   investigationSteps,
 } from '../../server/agents/incident-agent.js';
 import { readBriefing } from '../../server/monitoring/briefing.js';
@@ -142,10 +143,71 @@ describe('investigation steps', () => {
       { seq: 5, at: 't5', type: 'toolUse', tool: 'Grep', input: {} },
     ]);
     expect(steps).toEqual([
-      { seq: 2, at: 't2', kind: 'diagnose' },
-      { seq: 5, at: 't5', kind: 'code' },
+      { seq: 2, at: 't2', kind: 'diagnose', targets: [], more: 0 },
+      { seq: 5, at: 't5', kind: 'code', targets: [], more: 0 },
     ]);
     expect(JSON.stringify(steps)).not.toContain('--x');
+  });
+
+  it('tells each command of a chain, with the addresses and files it looked at', () => {
+    expect(
+      describeToolUse('Bash', {
+        command:
+          'cd /work/task; nocomonitor incident context --json | head -c 3000; echo; ' +
+          'curl -s -H "Authorization: Bearer s3cret" "https://ops:pw@api.example.test/v1/health?token=abc#x"; ' +
+          'for u in https://api.example.test/a https://api.example.test/hooks/9f8e7d6c5b4a39281706f5e4; do curl -s $u; done',
+      }),
+    ).toEqual([
+      { kind: 'context', targets: [] },
+      { kind: 'request', targets: ['api.example.test/v1/health'] },
+      {
+        kind: 'request',
+        targets: ['api.example.test/a', 'api.example.test/hooks/…'],
+      },
+    ]);
+    expect(
+      describeToolUse('Read', { file_path: '/home/runner/repo/server/app.ts' }),
+    ).toEqual([{ kind: 'code', targets: ['server/app.ts'] }]);
+    expect(
+      describeToolUse('WebFetch', { url: 'https://docs.example.test/x?k=1' }),
+    ).toEqual([{ kind: 'request', targets: ['docs.example.test/x'] }]);
+  });
+
+  it('reads past what the agent wrote: here-documents and drafts are not steps', () => {
+    expect(
+      describeToolUse('Bash', {
+        command:
+          'cat > diagnosis.json <<\'E\'\n{"summary": "curl https://leak.example.test/ returned 404"}\nE\n' +
+          'nocomonitor incident diagnose --content-file diagnosis.json',
+      }),
+    ).toEqual([{ kind: 'diagnose', targets: [] }]);
+  });
+
+  it('folds consecutive steps of one kind, keeping a few of their targets', () => {
+    const read = (seq: number, file: string) => ({
+      seq,
+      at: `t${seq}`,
+      type: 'toolUse',
+      tool: 'Read',
+      input: { file_path: `/repo/src/${file}` },
+    });
+    const steps = investigationSteps([
+      read(1, 'a.ts'),
+      read(2, 'b.ts'),
+      read(3, 'a.ts'),
+      read(4, 'c.ts'),
+      read(5, 'd.ts'),
+      read(6, 'e.ts'),
+    ]);
+    expect(steps).toEqual([
+      {
+        seq: 1,
+        at: 't1',
+        kind: 'code',
+        targets: ['src/a.ts', 'src/b.ts', 'src/c.ts'],
+        more: 2,
+      },
+    ]);
   });
 });
 

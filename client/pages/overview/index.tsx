@@ -59,6 +59,7 @@ import {
   StatusDot,
   UptimeBars,
 } from '../monitoring/components.js';
+import { CurrentStep } from '../incidents/investigation-steps.js';
 import { AiPipelineCompact } from '../monitoring/ai-pipeline.js';
 import { useDrillAction } from '../monitoring/drill-dialog.js';
 import { usePipelineSteps } from '../monitoring/pipeline-steps.js';
@@ -502,12 +503,17 @@ function ActiveIncident({
       <p className='font-medium'>{incident.title}</p>
       <GroupedLine members={members} />
       <AiPipelineCompact steps={steps} />
-      <p className='flex items-start gap-1.5 text-sm text-muted-foreground'>
-        <BotIcon className='mt-0.5 size-4 shrink-0' />
-        <span className='line-clamp-2'>
-          {incident.aiSummary ?? t(`monitoring.ai.state.${incident.aiState}`)}
-        </span>
-      </p>
+      {/* While the agent investigates, what it is doing now; otherwise what it concluded. */}
+      {incident.aiState === 'queued' || incident.aiState === 'running' ? (
+        <CurrentStep incident={incident} />
+      ) : (
+        <p className='flex items-start gap-1.5 text-sm text-muted-foreground'>
+          <BotIcon className='mt-0.5 size-4 shrink-0' />
+          <span className='line-clamp-2'>
+            {incident.aiSummary ?? t(`monitoring.ai.state.${incident.aiState}`)}
+          </span>
+        </p>
+      )}
     </Link>
   );
 }

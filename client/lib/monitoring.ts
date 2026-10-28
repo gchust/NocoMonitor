@@ -314,7 +314,17 @@ export interface InvestigationActivity {
   startedAt: string | null;
   finishedAt: string | null;
   model: string | null;
-  steps: { seq: number; at: string; kind: InvestigationStepKind }[];
+  steps: InvestigationStep[];
+}
+
+/** One step of an investigation, with what it looked at: an address's host and path, or a file. */
+export interface InvestigationStep {
+  seq: number;
+  at: string;
+  kind: InvestigationStepKind;
+  targets: string[];
+  /** How many more it looked at than `targets` lists. */
+  more: number;
 }
 
 /** An agent from the Agents plugin's roster (`GET /api/agents/available`). */

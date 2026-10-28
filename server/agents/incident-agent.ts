@@ -52,6 +52,10 @@ export interface InvestigationStep {
   seq: number;
   at: string;
   kind: InvestigationStepKind;
+  /** What the step looked at: the host and path of an address it requested, or a file it read. At most `MAX_TARGETS`. */
+  targets: string[];
+  /** How many more it looked at than `targets` lists. */
+  more: number;
 }
 
 export interface InvestigationActivity {
@@ -77,32 +81,52 @@ export interface DiagnosisAgentSummary {
 
 /** How many tool calls of one run are read for its steps; an investigation is a few dozen. */
 const MAX_ACTIVITY_EVENTS = 1000;
+const MAX_TARGETS = 3;
 const CODE_TOOLS = new Set(['Read', 'Grep', 'Glob', 'LS', 'NotebookRead']);
 const REQUEST_TOOLS = new Set(['WebFetch']);
+const URL_PATTERN = /https?:\/\/[^\s'"`<>()\\;|&,$]+/g;
+/** A here-document's body (`cat > d.json <<'E' … E`): data the agent wrote, not commands it ran. */
+const HEREDOC_PATTERN =
+  /(<<-?\s*(['"]?)(\w+)\2[^\n]*)\n[\s\S]*?\n\s*\3\s*(?=\n|$)/g;
 
 /**
- * Classifies one tool call of a diagnosis run. Only the tool's name and command are looked at, and only the kind
- * leaves: commands carry URLs, tokens and response bodies the incident page must not show to every reader.
+ * An address as a step shows it: host and path only. Credentials, query strings and fragments are where tokens travel,
+ * and a long opaque path segment (a webhook key, say) is elided too.
  */
-export function classifyToolUse(
-  tool: string | undefined,
-  input: unknown,
-): InvestigationStepKind {
-  if (tool && CODE_TOOLS.has(tool)) return 'code';
-  if (tool && REQUEST_TOOLS.has(tool)) return 'request';
-  const command =
-    input && typeof input === 'object' && 'command' in input
-      ? String(input.command)
-      : typeof input === 'string'
-        ? input
-        : '';
+function addressTarget(raw: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    return null;
+  }
+  const path = url.pathname
+    .split('/')
+    .map((segment) =>
+      segment.length >= 20 && /\d/.test(segment) && /^[\w-]+$/.test(segment)
+        ? '…'
+        : segment,
+    )
+    .join('/');
+  return `${url.host}${path === '/' ? '' : path}`;
+}
+
+/** A file as a step shows it: its last two path segments, without the runner's working directories. */
+function fileTarget(raw: unknown): string | null {
+  if (typeof raw !== 'string' || !raw.trim()) return null;
+  return raw.trim().split('/').filter(Boolean).slice(-2).join('/') || null;
+}
+
+function classifyCommand(command: string): InvestigationStepKind {
   if (/\bincident\s+diagnose\b/.test(command)) return 'diagnose';
   if (/\bincident\s+remediate\b/.test(command)) return 'remediate';
   if (/\bincident\s+probe\b/.test(command)) return 'probe';
   if (/\bincident\s+context\b/.test(command)) return 'context';
-  if (/(^|[\s;|&(])(curl|wget|http)\s/.test(command)) return 'request';
+  if (/(^|[\s(])(curl|wget|http)\s/.test(command)) return 'request';
+  // Writing a draft (`cat > d.json`) is not reading anything.
+  if (/^cat\s*>/.test(command)) return 'command';
   if (
-    /(^|[\s;|&(])(cat|grep|rg|find|ls|git|sed|head|tail|awk|tree|wc)\s/.test(
+    /(^|[\s(])(cat|grep|rg|find|ls|git|sed|head|tail|awk|tree|wc)\s/.test(
       command,
     )
   )
@@ -110,7 +134,85 @@ export function classifyToolUse(
   return 'command';
 }
 
-/** The steps of a run in order, consecutive steps of the same kind told once (at the first one's time). */
+/**
+ * What one tool call of a diagnosis run did, in the order it did it: a shell command chaining several steps
+ * (`context; probe; curl …`) tells each. Only kinds and their targets (see `addressTarget`, `fileTarget`) leave, never
+ * the command: commands carry tokens and response bodies the incident page must not show to every reader.
+ */
+export function describeToolUse(
+  tool: string | undefined,
+  input: unknown,
+): { kind: InvestigationStepKind; targets: string[] }[] {
+  const field = (name: string): unknown =>
+    input && typeof input === 'object' && name in input
+      ? (input as Record<string, unknown>)[name]
+      : undefined;
+  if (tool && CODE_TOOLS.has(tool)) {
+    const file = fileTarget(field('file_path') ?? field('path'));
+    return [{ kind: 'code', targets: file ? [file] : [] }];
+  }
+  if (tool && REQUEST_TOOLS.has(tool)) {
+    const url = field('url');
+    const address = typeof url === 'string' ? addressTarget(url) : null;
+    return [{ kind: 'request', targets: address ? [address] : [] }];
+  }
+  const command = (
+    field('command') !== undefined
+      ? String(field('command'))
+      : typeof input === 'string'
+        ? input
+        : ''
+  ).replace(HEREDOC_PATTERN, '$1');
+  const addresses = (text: string): string[] => [
+    ...new Set(
+      (text.match(URL_PATTERN) ?? [])
+        .map(addressTarget)
+        .filter((address): address is string => address !== null),
+    ),
+  ];
+  // Each command of a chain, by the first program of its pipeline: `context | head` reads the context.
+  const segments = command
+    .split(/&&|\|\||[;\n]/)
+    .map((part) => part.split('|')[0].trim())
+    .filter(Boolean)
+    .map((segment) => ({ segment, kind: classifyCommand(segment) }));
+  const named = new Set(
+    segments.flatMap(({ segment, kind }) =>
+      kind === 'request' ? addresses(segment) : [],
+    ),
+  );
+  // A request through a shell variable (`for u in …; do curl $u`) requested the addresses the command names that no
+  // other request of it did.
+  const unclaimed = addresses(command).filter((address) => !named.has(address));
+  const steps: { kind: InvestigationStepKind; targets: string[] }[] = [];
+  for (const { segment, kind } of segments) {
+    const own = kind === 'request' ? addresses(segment) : [];
+    const targets = kind === 'request' && !own.length ? unclaimed : own;
+    if (
+      steps.some(
+        (step) => step.kind === kind && step.targets.join() === targets.join(),
+      )
+    )
+      continue;
+    steps.push({ kind, targets });
+  }
+  // Moving about and printing (`cd`, `echo`) is not a step of its own once the call did anything else.
+  const meaningful = steps.filter((step) => step.kind !== 'command');
+  return meaningful.length ? meaningful : [{ kind: 'command', targets: [] }];
+}
+
+/** The first thing one tool call of a diagnosis run did; see `describeToolUse`. */
+export function classifyToolUse(
+  tool: string | undefined,
+  input: unknown,
+): InvestigationStepKind {
+  return describeToolUse(tool, input)[0].kind;
+}
+
+/**
+ * The steps of a run in order. Consecutive steps of the same kind are told once, at the first one's time, with the
+ * targets of all of them.
+ */
 export function investigationSteps(
   events: readonly {
     seq: number;
@@ -120,14 +222,37 @@ export function investigationSteps(
     input?: unknown;
   }[],
 ): InvestigationStep[] {
-  const steps: InvestigationStep[] = [];
+  const steps: (InvestigationStep & { seen: Set<string> })[] = [];
   for (const event of events) {
     if (event.type !== 'toolUse') continue;
-    const kind = classifyToolUse(event.tool, event.input);
-    if (steps.at(-1)?.kind === kind) continue;
-    steps.push({ seq: event.seq, at: event.at, kind });
+    for (const { kind, targets } of describeToolUse(event.tool, event.input)) {
+      let step = steps.at(-1);
+      if (step?.kind !== kind) {
+        step = {
+          seq: event.seq,
+          at: event.at,
+          kind,
+          targets: [],
+          more: 0,
+          seen: new Set(),
+        };
+        steps.push(step);
+      }
+      for (const target of targets) {
+        if (step.seen.has(target)) continue;
+        step.seen.add(target);
+        if (step.targets.length < MAX_TARGETS) step.targets.push(target);
+        else step.more += 1;
+      }
+    }
   }
-  return steps;
+  return steps.map(({ seq, at, kind, targets, more }) => ({
+    seq,
+    at,
+    kind,
+    targets,
+    more,
+  }));
 }
 
 export class DiagnosisUnavailableError extends Error {

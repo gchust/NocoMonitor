@@ -31,10 +31,13 @@ export function AiDiagnosisCard({
   incident,
   canManage,
   diagnosis,
+  onSettled,
 }: {
   readonly incident: Incident;
   readonly canManage: boolean;
   readonly diagnosis: Diagnose;
+  /** The diagnosis finished: the page reads the incident again rather than wait for its next refresh. */
+  readonly onSettled?: () => void;
 }): ReactElement {
   const { diagnose, asking } = diagnosis;
   const { t, i18n } = useTranslation();
@@ -97,6 +100,10 @@ export function AiDiagnosisCard({
         ) : null}
       </CardHeader>
       <CardContent className='space-y-4 text-sm'>
+        {/* While the agent works, what it is doing leads the card, above an earlier conclusion it may replace. */}
+        {working ? (
+          <InvestigationSteps incident={incident} onSettled={onSettled} />
+        ) : null}
         {incident.aiSummary ? (
           <p className='text-base leading-7 font-medium break-words'>
             {incident.aiSummary}
@@ -158,7 +165,9 @@ export function AiDiagnosisCard({
         {!incident.aiSummary && !working ? (
           <p className='text-muted-foreground'>{t('monitoring.ai.noneYet')}</p>
         ) : null}
-        {incident.aiRunId ? <InvestigationSteps incident={incident} /> : null}
+        {!working && incident.aiRunId ? (
+          <InvestigationSteps incident={incident} />
+        ) : null}
       </CardContent>
     </Card>
   );

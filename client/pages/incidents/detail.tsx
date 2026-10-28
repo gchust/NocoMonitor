@@ -243,6 +243,7 @@ export default function IncidentDetailPage(): ReactElement {
                   // The lead's diagnosis is asked for on the lead's page.
                   canManage={canManage && !lead}
                   diagnosis={diagnosis}
+                  onSettled={reload}
                 />
                 {fixOptions ? (
                   <RemediationPanel

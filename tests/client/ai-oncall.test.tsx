@@ -29,6 +29,7 @@ import {
   type AiBriefing,
   type Check,
   type Incident,
+  type InvestigationActivity,
   type Remediation,
 } from '../../client/lib/monitoring.js';
 import IncidentDetailPage from '../../client/pages/incidents/detail.js';
@@ -44,6 +45,7 @@ let rejectAnswer: () => unknown;
 let monitor: { id: string; name: string; status: string } | null;
 let group: { lead: Incident | null; members: unknown[] };
 let overviewIncidents: () => Incident[];
+let activity: () => InvestigationActivity;
 
 const manage: AuthorizationSnapshot = {
   unrestricted: false,
@@ -76,19 +78,7 @@ const api = vi.fn(({ method, path }: ApiCall) => {
   if (method === 'GET' && path === `incidents/${incident.id}/remediations`)
     return { data: { level: 'approve', actions: [], remediations } };
   if (method === 'GET' && path === `incidents/${incident.id}/aiActivity`)
-    return {
-      data: {
-        runId: 'run-1',
-        status: 'completed',
-        startedAt: '2026-10-27T10:00:00Z',
-        finishedAt: '2026-10-27T10:01:30Z',
-        model: 'model',
-        steps: [
-          { seq: 3, at: '2026-10-27T10:00:10Z', kind: 'probe' },
-          { seq: 7, at: '2026-10-27T10:00:40Z', kind: 'code' },
-        ],
-      },
-    };
+    return { data: activity() };
   if (method === 'POST' && path === `incidents/${incident.id}/updates`)
     return { data: { id: 'u-2' } };
   if (method === 'POST' && path === 'remediations/fix-1/reject')
@@ -183,6 +173,29 @@ beforeEach(() => {
   monitor = null;
   group = { lead: null, members: [] };
   overviewIncidents = () => [incident];
+  activity = () => ({
+    runId: 'run-1',
+    status: 'completed',
+    startedAt: '2026-10-27T10:00:00Z',
+    finishedAt: '2026-10-27T10:01:30Z',
+    model: 'model',
+    steps: [
+      {
+        seq: 3,
+        at: '2026-10-27T10:00:10Z',
+        kind: 'probe',
+        targets: [],
+        more: 0,
+      },
+      {
+        seq: 7,
+        at: '2026-10-27T10:00:40Z',
+        kind: 'code',
+        targets: ['server/pool.ts'],
+        more: 0,
+      },
+    ],
+  });
   incident = {
     id: 'inc-1',
     serviceId: 'svc-1',
@@ -338,6 +351,7 @@ describe('incident automatic response', () => {
     );
     expect(screen.getByText(copy.ai.activity.kind.probe)).toBeVisible();
     expect(screen.getByText(copy.ai.activity.kind.code)).toBeVisible();
+    expect(screen.getByText('server/pool.ts')).toBeVisible();
 
     const [approve] = screen.getAllByRole('button', {
       name: copy.fixes.approve,
@@ -432,6 +446,81 @@ describe('incident automatic response', () => {
     expect(
       screen.queryByRole('button', { name: copy.fixes.approve }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('live investigation', () => {
+  const running = (steps: InvestigationActivity['steps']) => {
+    incident = { ...incident, aiState: 'running', aiSummary: null };
+    remediations = [];
+    activity = () => ({
+      runId: 'run-1',
+      status: 'running',
+      startedAt: new Date(Date.now() - 42_000).toISOString(),
+      finishedAt: null,
+      model: 'model',
+      steps,
+    });
+  };
+  const steps: InvestigationActivity['steps'] = [
+    { seq: 3, at: '2026-10-27T10:00:10Z', kind: 'probe', targets: [], more: 0 },
+    {
+      seq: 5,
+      at: '2026-10-27T10:00:20Z',
+      kind: 'request',
+      targets: ['api.example.test/health', 'api.example.test/db'],
+      more: 2,
+    },
+  ];
+
+  it('leads the diagnosis with what the agent is doing now and what it already did', async () => {
+    running(steps);
+    await renderAt('/incidents/inc-1');
+    expect(await screen.findByText(copy.ai.activity.live)).toBeVisible();
+    expect(await screen.findByText(copy.ai.activity.kind.probe)).toBeVisible();
+    expect(screen.getByText(copy.ai.activity.live)).toHaveTextContent(
+      /· 0:4\d so far/,
+    );
+    expect(screen.getByText(copy.ai.activity.now.request)).toBeVisible();
+    expect(
+      screen.getByText('api.example.test/health, api.example.test/db +2 more'),
+    ).toBeVisible();
+    // The folded log is for a finished run.
+    expect(
+      screen.queryByRole('button', { name: /How the agent investigated/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('says the investigation waits for a runner while it is queued', async () => {
+    running([]);
+    incident = { ...incident, aiState: 'queued' };
+    await renderAt('/incidents/inc-1');
+    expect(await screen.findByText(copy.ai.activity.queued)).toBeVisible();
+  });
+
+  it('shows the current step on the overview card', async () => {
+    running(steps);
+    await renderAt('/');
+    expect(await screen.findByText(copy.ai.activity.now.request)).toBeVisible();
+  });
+
+  it('reads the incident again as soon as the steps show the run finished', async () => {
+    running(steps);
+    activity = () => ({
+      runId: 'run-1',
+      status: 'completed',
+      startedAt: '2026-10-27T10:00:00Z',
+      finishedAt: '2026-10-27T10:01:30Z',
+      model: 'model',
+      steps,
+    });
+    await renderAt('/incidents/inc-1');
+    await screen.findByText(copy.ai.activity.live);
+    const reads = () =>
+      api.mock.calls.filter(
+        ([call]) => call.method === 'GET' && call.path === 'incidents/inc-1',
+      ).length;
+    await waitFor(() => expect(reads()).toBeGreaterThan(1));
   });
 });
 

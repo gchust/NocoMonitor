@@ -546,6 +546,8 @@ export const InvestigationActivitySchema = z
           'remediate',
           'command',
         ]),
+        targets: z.array(z.string()),
+        more: z.number().int(),
       }),
     ),
   })
