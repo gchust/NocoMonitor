@@ -2,7 +2,7 @@ import { useTranslation } from '@nocobase/i18n/client';
 import ReactECharts from 'echarts-for-react';
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
-import type { Check } from '../../lib/monitoring.js';
+import { downRuns, type Check } from '../../lib/monitoring.js';
 
 /** The value of a CSS custom property on the document, which follows the active theme. */
 function token(name: string, fallback: string): string {
@@ -36,7 +36,7 @@ function useThemeColors() {
   return colors;
 }
 
-/** Response time over the window, with failed checks marked on the time axis. */
+/** Response time over the window, with the stretches in which checks failed shaded. */
 export function LatencyChart({
   checks,
   threshold,
@@ -58,9 +58,8 @@ export function LatencyChart({
       check.checkedAt,
       check.status === 'down' ? null : check.latencyMs,
     ]);
-    const failures = checks
-      .filter((check) => check.status === 'down')
-      .map((check) => [check.checkedAt, 0]);
+    const outages = downRuns(checks);
+    const answered = latency.some(([, value]) => value !== null);
     return {
       animation: false,
       grid: { left: 48, right: 16, top: 16, bottom: 32 },
@@ -83,9 +82,27 @@ export function LatencyChart({
         },
         splitLine: { show: false },
       },
+      // Every check failed: no line to draw, so the chart says why it is empty instead of plotting a scale of nothing.
+      graphic: answered
+        ? undefined
+        : [
+            {
+              type: 'text',
+              left: 'center',
+              top: 'middle',
+              style: {
+                text: t('monitoring.monitors.allChecksFailed'),
+                fill: colors.down,
+                fontSize: 13,
+              },
+            },
+          ],
       yAxis: {
         type: 'value',
         name: 'ms',
+        min: 0,
+        // With no answered check the axis would otherwise run from 0 to 1 ms.
+        ...(answered ? {} : { show: false }),
         nameTextStyle: { color: colors.text, fontSize: 11 },
         axisLabel: { color: colors.text, fontSize: 11 },
         splitLine: { lineStyle: { color: colors.grid, type: 'dashed' } },
@@ -100,6 +117,17 @@ export function LatencyChart({
           lineStyle: { width: 2, color: colors.line },
           itemStyle: { color: colors.line },
           areaStyle: { color: colors.line, opacity: 0.08 },
+          // Failed stretches are shaded across the chart rather than plotted as 0 ms, which would read as fast.
+          markArea: outages.length
+            ? {
+                silent: true,
+                itemStyle: { color: colors.down, opacity: 0.12 },
+                data: outages.map(([from, to]) => [
+                  { xAxis: from },
+                  { xAxis: to },
+                ]),
+              }
+            : undefined,
           markLine: threshold
             ? {
                 silent: true,
@@ -113,14 +141,6 @@ export function LatencyChart({
                 data: [{ yAxis: threshold }],
               }
             : undefined,
-        },
-        {
-          name: t('monitoring.monitorStatus.down'),
-          type: 'scatter',
-          data: failures,
-          symbolSize: 8,
-          itemStyle: { color: colors.down },
-          tooltip: { valueFormatter: () => t('monitoring.monitorStatus.down') },
         },
       ],
     };

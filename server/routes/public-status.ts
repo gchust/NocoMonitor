@@ -24,6 +24,9 @@ const HEALTH_ORDER: readonly ServiceHealth[] = [
   'unknown',
 ];
 
+/** How quickly a probe-opened incident must recover to count as a blip rather than an incident visitors read about. */
+const BLIP_MS = 10 * 60_000;
+
 /**
  * The public status page's data. Public by design: a status page is read by anyone, signed in or not. It answers only
  * what a published page lists — no URLs, errors, latencies or agent output — and incidents and updates marked public.
@@ -63,8 +66,22 @@ export const publicStatusRoutes: AppApiRouteContribution<Application> =
           days: 90,
           publicOnly: true,
         });
+        // A probe-opened incident the probes resolved within minutes is a blip, not news for visitors: the uptime bars
+        // still count it, and the page says how many there were instead of listing each one.
+        const isBlip = (
+          incident: (typeof overview.incidents)[number],
+        ): boolean =>
+          incident.source === 'auto' &&
+          incident.resolvedAt !== null &&
+          new Date(incident.resolvedAt).getTime() -
+            new Date(incident.startedAt).getTime() <
+            BLIP_MS;
+        const listed = overview.incidents.filter(
+          (incident) => !isBlip(incident),
+        );
+        const blips = overview.incidents.length - listed.length;
         const updates = await monitoring.listUpdatesFor(
-          overview.incidents.map((incident) => incident.id),
+          listed.map((incident) => incident.id),
           true,
         );
         const services = overview.services.map((entry) => ({
@@ -95,7 +112,9 @@ export const publicStatusRoutes: AppApiRouteContribution<Application> =
             },
             health: worst,
             services,
-            incidents: overview.incidents.map((incident) => ({
+            blips,
+            blipMinutes: BLIP_MS / 60_000,
+            incidents: listed.map((incident) => ({
               id: incident.id,
               serviceId: incident.serviceId,
               title: incident.title,

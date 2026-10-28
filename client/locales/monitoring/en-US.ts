@@ -202,6 +202,8 @@ const monitoringEnUS = {
     fixesVerified: 'Fixes verified',
     fixesValue: '{{verified}} of {{requested}}',
     fixesHint: 'Requested by the agent, confirmed by the probes',
+    fixesNone: 'No incident needed a fix',
+    fixesTryDrill: 'Run a drill to watch a fix end to end →',
     waiting: 'Waiting on you',
     waitingHint: 'Fix approvals and failed diagnoses',
     noIncidents: 'No incidents in the last {{count}} days',
@@ -283,6 +285,10 @@ const monitoringEnUS = {
       approval: 'The agent asks to run “{{action}}”.',
       diagnose: 'No diagnosis yet. Ask the agent to investigate.',
       retry: 'The diagnosis did not finish. Ask the agent again.',
+      falseAlarm:
+        'The agent found no outage: the service works, and the monitor is what needs changing.',
+      falseAlarmHint:
+        'Accepting resolves the incident. If the monitor keeps failing, adjust it so it does not raise the same alarm again.',
     },
   },
   monitors: {
@@ -327,6 +333,8 @@ const monitoringEnUS = {
     latencyChart: 'Response time chart',
     degradedLine: 'Degraded',
     noChecks: 'No checks in this window yet.',
+    allChecksFailed:
+      'Every check in this window failed: there is no response time to show.',
     uptimeHistory: 'Uptime history',
     recentChecks: 'Recent checks',
     incidents: 'Incidents',
@@ -392,6 +400,15 @@ const monitoringEnUS = {
       'No diagnosis yet. Monitors with AI diagnosis on ask an agent as soon as they go down.',
     updated: 'Updated {{when}}',
     confidence: '{{level}} confidence',
+    verdict: {
+      outage: 'AI verdict: real outage',
+      falseAlarm: 'AI verdict: false alarm',
+      falseAlarmBadge: 'AI: likely false alarm',
+      accept: 'Accept and resolve',
+      editMonitor: 'Adjust the monitor',
+      resolved: 'Incident resolved on the AI’s verdict',
+      resolvedBody: 'Resolved on the AI diagnosis: {{summary}}',
+    },
     level: { low: 'Low', medium: 'Medium', high: 'High' },
     risk: '{{level}} risk',
     step: 'Step {{index}}',
@@ -584,6 +601,11 @@ const monitoringEnUS = {
     services: 'Services',
     pastIncidents: 'Past incidents',
     noPastIncidents: 'No incidents reported.',
+    showAll: 'Show all {{count}} incidents',
+    blips_one:
+      'Plus {{count}} brief disruption that recovered on its own within {{minutes}} minutes.',
+    blips_other:
+      'Plus {{count}} brief disruptions that each recovered on their own within {{minutes}} minutes.',
     updated: 'Updated {{when}}',
     poweredBy: 'Powered by NocoMonitor',
   },

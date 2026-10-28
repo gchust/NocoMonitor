@@ -181,7 +181,7 @@ export const agentIncidentRoutes: AppApiRouteContribution<Application> =
         tags: TAGS,
         summary: 'Record the diagnosis of the incident',
         description:
-          'Send {"summary", "rootCause", "confidence": "low"|"medium"|"high", "suggestedActions": [{"title", "description", "risk", "command"}]} (or --content-file diagnosis.json). Recording again replaces the previous diagnosis.',
+          'Send {"summary", "rootCause", "confidence": "low"|"medium"|"high", "verdict": "outage"|"falseAlarm", "suggestedActions": [{"title", "description", "risk", "command"}]} (or --content-file diagnosis.json). Recording again replaces the previous diagnosis.',
         operationId: 'nocomonitorAgentIncidentDiagnosis',
         security: SECURITY,
         responses: {

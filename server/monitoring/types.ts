@@ -10,6 +10,8 @@ export type IncidentStatus =
 export type IncidentSeverity = 'minor' | 'major' | 'critical';
 export type RemediationLevel = 'off' | 'suggest' | 'approve' | 'auto';
 export type AiState = 'none' | 'queued' | 'running' | 'completed' | 'failed';
+export const AI_VERDICTS = ['outage', 'falseAlarm'] as const;
+export type AiVerdict = (typeof AI_VERDICTS)[number];
 
 export interface ServiceRecord {
   id: string;
@@ -190,6 +192,8 @@ export interface IncidentRecord {
   aiSummary: string | null;
   aiRootCause: string | null;
   aiConfidence: string | null;
+  /** The agent's judgement: a real outage, or a false alarm the monitor rather than the service should fix. */
+  aiVerdict: AiVerdict | null;
   aiSuggestedActions: unknown[] | null;
   aiUpdatedAt: Date | null;
   createdById: string | null;

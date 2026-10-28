@@ -50,6 +50,7 @@ import {
   type Service,
 } from '../../lib/monitoring.js';
 import {
+  FalseAlarmBadge,
   IncidentStatusBadge,
   LoadError,
   SeverityBadge,
@@ -146,6 +147,7 @@ export default function IncidentsPage(): ReactElement {
                   <div className='flex flex-wrap items-center gap-2'>
                     <IncidentStatusBadge status={incident.status} />
                     <SeverityBadge severity={incident.severity} />
+                    <FalseAlarmBadge incident={incident} />
                     <span className='font-medium'>{incident.title}</span>
                     <span className='ml-auto text-xs text-muted-foreground'>
                       {serviceName.get(incident.serviceId)} ·{' '}

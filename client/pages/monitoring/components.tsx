@@ -1,6 +1,6 @@
 import { ApiClientError } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { CircleAlertIcon } from 'lucide-react';
+import { CircleAlertIcon, SparklesIcon } from 'lucide-react';
 import type { ReactElement, ReactNode } from 'react';
 
 import { StatusBadge } from '#components/status-badge';
@@ -19,6 +19,7 @@ import {
   formatDay,
   formatLatency,
   formatUptime,
+  type Incident,
   type IncidentSeverity,
   type IncidentStatus,
   type MonitorStatus,
@@ -177,6 +178,22 @@ export function SeverityBadge({
       )}
     >
       {t(`monitoring.severity.${severity}`)}
+    </StatusBadge>
+  );
+}
+
+/** The agent judged the incident a false alarm: the service works, the monitor needs changing. Nothing otherwise. */
+export function FalseAlarmBadge({
+  incident,
+}: {
+  readonly incident: Pick<Incident, 'aiVerdict'>;
+}): ReactElement | null {
+  const { t } = useTranslation();
+  if (incident.aiVerdict !== 'falseAlarm') return null;
+  return (
+    <StatusBadge tone='info'>
+      <SparklesIcon className='size-3' />
+      {t('monitoring.ai.verdict.falseAlarmBadge')}
     </StatusBadge>
   );
 }

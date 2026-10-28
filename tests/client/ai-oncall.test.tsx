@@ -23,10 +23,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import packageMetadata from '../../package.json' with { type: 'json' };
 import enUS from '../../client/locales/en-US.js';
-import type {
-  AiBriefing,
-  Incident,
-  Remediation,
+import {
+  downRuns,
+  type AiBriefing,
+  type Check,
+  type Incident,
+  type Remediation,
 } from '../../client/lib/monitoring.js';
 import IncidentDetailPage from '../../client/pages/incidents/detail.js';
 import OverviewPage from '../../client/pages/overview/index.js';
@@ -38,6 +40,7 @@ let briefing: AiBriefing;
 let incident: Incident;
 let remediations: Remediation[];
 let rejectAnswer: () => unknown;
+let monitor: { id: string; name: string; status: string } | null;
 
 const manage: AuthorizationSnapshot = {
   unrestricted: false,
@@ -65,7 +68,7 @@ const api = vi.fn(({ method, path }: ApiCall) => {
     return { data: briefing };
   if (method === 'GET' && path === `incidents/${incident.id}`)
     return {
-      data: { incident, service: null, monitor: null, updates: [] },
+      data: { incident, service: null, monitor, updates: [] },
     };
   if (method === 'GET' && path === `incidents/${incident.id}/remediations`)
     return { data: { level: 'approve', actions: [], remediations } };
@@ -83,6 +86,8 @@ const api = vi.fn(({ method, path }: ApiCall) => {
         ],
       },
     };
+  if (method === 'POST' && path === `incidents/${incident.id}/updates`)
+    return { data: { id: 'u-2' } };
   if (method === 'POST' && path === 'remediations/fix-1/reject')
     return rejectAnswer();
   if (method === 'POST' && path === 'remediations/fix-1/approve')
@@ -172,6 +177,7 @@ beforeEach(() => {
   permissions = manage;
   briefing = emptyBriefing();
   rejectAnswer = () => ({ data: null });
+  monitor = null;
   incident = {
     id: 'inc-1',
     serviceId: 'svc-1',
@@ -420,5 +426,93 @@ describe('incident automatic response', () => {
     expect(
       screen.queryByRole('button', { name: copy.fixes.approve }),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe('false alarms', () => {
+  beforeEach(() => {
+    incident = {
+      ...incident,
+      monitorId: 'mon-1',
+      aiVerdict: 'falseAlarm',
+      aiSummary:
+        'The path does not exist; the monitor points at the wrong URL.',
+    };
+    monitor = { id: 'mon-1', name: 'API health', status: 'down' };
+    remediations = [];
+  });
+
+  it('offers to resolve the incident on the verdict, or to adjust the monitor', async () => {
+    const view = await renderAt('/incidents/inc-1');
+
+    expect(
+      await screen.findByText(copy.pipeline.next.falseAlarm),
+    ).toBeVisible();
+    expect(screen.getByText(copy.ai.verdict.falseAlarm)).toBeVisible();
+    expect(
+      // A link rendered as a button, like the page's other actions.
+      screen.getByRole('button', { name: copy.ai.verdict.editMonitor }),
+    ).toHaveAttribute('href', '/monitors/mon-1?edit');
+
+    await userEvent.click(
+      screen.getByRole('button', { name: copy.ai.verdict.accept }),
+    );
+    await waitFor(() =>
+      expect(api).toHaveBeenCalledWith({
+        method: 'POST',
+        path: 'incidents/inc-1/updates',
+        json: {
+          status: 'resolved',
+          body: 'Resolved on the AI diagnosis: The path does not exist; the monitor points at the wrong URL.',
+          publicVisible: false,
+        },
+      }),
+    );
+    await waitFor(() =>
+      expect(view.toasts()).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'success',
+            title: copy.ai.verdict.resolved,
+          }),
+        ]),
+      ),
+    );
+  });
+
+  it('marks the incident on the overview and leaves the decision to managers', async () => {
+    permissions = readOnly;
+    await renderAt('/');
+    expect(
+      await screen.findByText(copy.ai.verdict.falseAlarmBadge),
+    ).toBeVisible();
+
+    await renderAt('/incidents/inc-1');
+    expect(
+      screen.queryByRole('button', { name: copy.ai.verdict.accept }),
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('outage stretches on the latency chart', () => {
+  const at = (minute: number) =>
+    new Date(Date.UTC(2026, 9, 28, 0, minute)).toISOString();
+  const check = (minute: number, status: 'up' | 'down') =>
+    ({ checkedAt: at(minute), status }) as Check;
+
+  it('runs from the first failure to the next answer, and stays visible when short', () => {
+    expect(
+      downRuns([
+        check(0, 'up'),
+        check(1, 'down'),
+        check(2, 'down'),
+        check(5, 'up'),
+        check(6, 'down'),
+      ]),
+    ).toEqual([
+      [Date.parse(at(1)), Date.parse(at(5))],
+      [Date.parse(at(6)), Date.parse(at(7))],
+    ]);
+    expect(downRuns([check(0, 'up'), check(1, 'up')])).toEqual([]);
   });
 });

@@ -33,6 +33,7 @@ import {
   EmptyTitle,
 } from '#components/ui/empty';
 import { Skeleton } from '#components/ui/skeleton';
+import { cn } from 'cn';
 
 import { useApiData } from '../../hooks/use-api-data.js';
 import {
@@ -49,6 +50,7 @@ import {
 } from '../../lib/monitoring.js';
 import {
   HealthBadge,
+  FalseAlarmBadge,
   IncidentStatusBadge,
   LoadError,
   SeverityBadge,
@@ -56,6 +58,7 @@ import {
   UptimeBars,
 } from '../monitoring/components.js';
 import { AiPipelineCompact } from '../monitoring/ai-pipeline.js';
+import { useDrillAction } from '../monitoring/drill-dialog.js';
 import { usePipelineSteps } from '../monitoring/pipeline-steps.js';
 import type { IncidentsOutletContext } from '../incidents/index.js';
 import { useCanManage } from '../monitoring/utils.js';
@@ -101,6 +104,7 @@ export default function OverviewPage(): ReactElement {
     },
   );
   const drillStatus = drill.data?.data;
+  const drillAction = useDrillAction({ onSettled: () => drill.reload() });
   if ((drillStatus?.state === 'running') !== drillRunning)
     setDrillRunning(drillStatus?.state === 'running');
   const attention = briefing.data?.data.needsYou ?? [];
@@ -255,7 +259,14 @@ export default function OverviewPage(): ReactElement {
           canManage={canManage}
           // Getting started already leads with setting up the agent: here it is a second way there.
           secondarySetup={showStart && !steps[0].done}
+          // Getting started offers the drill itself while it shows.
+          onStartDrill={
+            canManage && !showStart && drillStatus?.state === 'idle'
+              ? () => drillAction.ask('start')
+              : undefined
+          }
         />
+        {drillAction.dialog}
 
         {overview.error && !data ? (
           <LoadError error={overview.error} onRetry={overview.reload} />
@@ -453,11 +464,18 @@ function ActiveIncident({
   return (
     <Link
       to={`incident/${incident.id}`}
-      className='flex flex-col gap-2 rounded-xl border border-destructive/25 bg-destructive/5 p-4 transition-colors hover:bg-destructive/8'
+      className={cn(
+        'flex flex-col gap-2 rounded-xl border p-4 transition-colors',
+        // A false alarm the agent called is not an outage: it does not look like one.
+        incident.aiVerdict === 'falseAlarm'
+          ? 'border-primary/20 bg-primary/5 hover:bg-primary/8'
+          : 'border-destructive/25 bg-destructive/5 hover:bg-destructive/8',
+      )}
     >
       <div className='flex flex-wrap items-center gap-2'>
         <IncidentStatusBadge status={incident.status} />
         <SeverityBadge severity={incident.severity} />
+        <FalseAlarmBadge incident={incident} />
         <span className='ml-auto text-xs text-muted-foreground'>
           {t('monitoring.incidents.lasting', {
             duration: formatDuration(incident.startedAt, null, i18n.language),

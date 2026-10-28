@@ -364,3 +364,118 @@ test('the diagnose command takes the whole diagnosis from --content-file', async
   expect(operation).toBeDefined();
   expect(JSON.stringify(operation?.['x-cli'])).toContain('content-file');
 });
+
+test('a recovery is written in the chosen language too', async ({ app }) => {
+  const { monitoring, monitor } = await setUp(app, 'Billing');
+  await app.container.resolve(remediationServiceToken).saveAiSettings(
+    {
+      enabled: true,
+      agentId: null,
+      actorUserId: null,
+      actorName: null,
+      language: 'zh-CN',
+    },
+    null,
+  );
+  const down = { latencyMs: null, httpStatus: 503, error: 'HTTP 503' };
+  const opened = await monitoring.recordResult(
+    monitor.id,
+    { status: 'down', ...down, details: {} },
+    new Date(),
+  );
+  const resolved = await monitoring.recordResult(
+    monitor.id,
+    { status: 'up', latencyMs: 120, httpStatus: 200, error: null, details: {} },
+    new Date(),
+  );
+  expect(resolved?.resolvedIncident?.id).toBe(opened?.openedIncident?.id);
+  const updates = await monitoring.listIncidentUpdates(
+    opened!.openedIncident!.id,
+  );
+  expect(updates.map((update) => update.body)).toContain(
+    '监控项连续 1 次检查成功，已恢复。',
+  );
+});
+
+test('the agent’s verdict is recorded and reaches the incident', async ({
+  app,
+  testApp,
+}) => {
+  const { monitoring, monitor } = await setUp(app);
+  const incident = await monitoring.openManualIncident({
+    serviceId: monitor.serviceId,
+    monitorId: monitor.id,
+    title: 'API is down',
+    severity: 'major',
+    body: 'Down',
+    publicVisible: false,
+    actor: person,
+  });
+  await monitoring.recordDiagnosis(incident.id, {
+    summary: 'The path does not exist; the monitor points at the wrong URL.',
+    rootCause: '- Every check returns 404 from the application router',
+    confidence: 'high',
+    verdict: 'falseAlarm',
+    suggestedActions: [],
+    actor: agent,
+  });
+  const admin = await signIn(testApp, DEFAULT_ADMIN_CREDENTIALS);
+  const detail = await admin.fetch(`/incidents/${incident.id}`);
+  expect(detail.status).toBe(200);
+  expect((await detail.json()).data.incident).toMatchObject({
+    aiVerdict: 'falseAlarm',
+    aiConfidence: 'high',
+  });
+  // The timeline entry carries no English labels of its own.
+  const updates = await monitoring.listIncidentUpdates(incident.id);
+  const diagnosis = updates.find((update) => update.kind === 'diagnosis')!;
+  expect(diagnosis.body).not.toMatch(/Root cause:|Confidence:/u);
+});
+
+test('a public status page counts blips instead of listing them', async ({
+  app,
+  testApp,
+}) => {
+  const { monitoring, service, monitor } = await setUp(app, 'Blip');
+  const fail = {
+    status: 'down' as const,
+    latencyMs: null,
+    httpStatus: 503,
+    error: 'HTTP 503',
+    details: {},
+  };
+  const pass = {
+    status: 'up' as const,
+    latencyMs: 100,
+    httpStatus: 200,
+    error: null,
+    details: {},
+  };
+  // The probes resolve an incident when the recovering check is recorded, so both stories end now.
+  // Down for an hour and a half: an incident visitors read about.
+  const long = new Date(Date.now() - 90 * 60_000);
+  await monitoring.recordResult(monitor.id, fail, long);
+  await monitoring.recordResult(monitor.id, pass, new Date());
+  // Down for two minutes, then back: a blip.
+  await monitoring.recordResult(
+    monitor.id,
+    fail,
+    new Date(Date.now() - 2 * 60_000),
+  );
+  await monitoring.recordResult(monitor.id, pass, new Date());
+  await monitoring.createStatusPage({
+    slug: 'blips',
+    title: 'Status',
+    description: null,
+    serviceIds: [service.id],
+    published: true,
+  });
+
+  const response = await testApp.request('/publicStatusPages/blips');
+  expect(response.status).toBe(200);
+  const data = (await response.json()).data;
+  expect(data.blips).toBe(1);
+  expect(data.blipMinutes).toBe(10);
+  expect(data.incidents).toHaveLength(1);
+  expect(new Date(data.incidents[0].startedAt).getTime()).toBe(long.getTime());
+});

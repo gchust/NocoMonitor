@@ -53,9 +53,12 @@ export function AiOnCallCard({
   briefing,
   canManage,
   secondarySetup = false,
+  onStartDrill,
 }: {
   readonly briefing: ApiData<{ data: AiBriefing }>;
   readonly canManage: boolean;
+  /** Starts a drill: offered where no fix has run yet, so the automatic response can be seen end to end. */
+  readonly onStartDrill?: () => void;
   /** Another card on the page leads to the same setup as its primary action. */
   readonly secondarySetup?: boolean;
 }): ReactElement {
@@ -182,11 +185,29 @@ export function AiOnCallCard({
             />
             <Metric
               label={t('monitoring.oncall.fixesVerified')}
-              value={t('monitoring.oncall.fixesValue', {
-                verified: stats.fixesVerified,
-                requested: stats.fixesRequested,
-              })}
-              hint={t('monitoring.oncall.fixesHint')}
+              value={
+                stats.fixesRequested
+                  ? t('monitoring.oncall.fixesValue', {
+                      verified: stats.fixesVerified,
+                      requested: stats.fixesRequested,
+                    })
+                  : '—'
+              }
+              hint={
+                !stats.fixesRequested && onStartDrill ? (
+                  <button
+                    type='button'
+                    className='text-left text-primary underline-offset-4 hover:underline'
+                    onClick={onStartDrill}
+                  >
+                    {t('monitoring.oncall.fixesTryDrill')}
+                  </button>
+                ) : stats.fixesRequested ? (
+                  t('monitoring.oncall.fixesHint')
+                ) : (
+                  t('monitoring.oncall.fixesNone')
+                )
+              }
             />
             <Metric
               label={t('monitoring.oncall.waiting')}
@@ -228,7 +249,7 @@ function Metric({
 }: {
   readonly label: string;
   readonly value: ReactNode;
-  readonly hint: string;
+  readonly hint: ReactNode;
 }): ReactElement {
   return (
     <div className='min-w-0'>
@@ -417,7 +438,7 @@ export function AgentFeedCard({
                       </span>
                       <span>{formatRelative(item.at, i18n.language)}</span>
                     </span>
-                    <span className='mt-0.5 line-clamp-1 underline-offset-4 group-hover:underline'>
+                    <span className='mt-0.5 line-clamp-2 underline-offset-4 group-hover:underline'>
                       {item.text}
                     </span>
                     <span className='block truncate text-xs text-muted-foreground'>

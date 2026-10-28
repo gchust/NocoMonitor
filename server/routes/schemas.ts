@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { DIAGNOSIS_LANGUAGES } from '../monitoring/language.js';
-import { ALERT_EVENTS } from '../monitoring/types.js';
+import { AI_VERDICTS, ALERT_EVENTS } from '../monitoring/types.js';
 
 const Id = z.string().min(1).max(64);
 const Time = z.iso.datetime();
@@ -148,6 +148,7 @@ export const IncidentSchema = z
     aiSummary: z.string().nullable(),
     aiRootCause: z.string().nullable(),
     aiConfidence: z.string().nullable(),
+    aiVerdict: z.enum(AI_VERDICTS).nullable(),
     aiSuggestedActions: z.array(z.unknown()).nullable(),
     aiUpdatedAt: NullableTime,
     createdById: z.string().nullable(),
@@ -241,6 +242,9 @@ export const PublicStatusSchema = z
         ),
       }),
     ),
+    /** Probe-opened incidents that recovered within `blipMinutes`, counted rather than listed. */
+    blips: z.number().int(),
+    blipMinutes: z.number().int(),
     incidents: z.array(
       z.object({
         id: z.string(),
@@ -587,6 +591,7 @@ export const DiagnosisInputSchema = z.strictObject({
   summary: z.string().trim().min(1).max(4000),
   rootCause: z.string().trim().max(20000).nullable().default(null),
   confidence: z.enum(['low', 'medium', 'high']).nullable().default(null),
+  verdict: z.enum(AI_VERDICTS).nullable().default(null),
   suggestedActions: z
     .array(
       z.object({

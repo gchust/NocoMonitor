@@ -47,7 +47,7 @@ export function AiDiagnosisCard({
   return (
     <Card className='ring-primary/20'>
       <CardHeader>
-        <CardTitle className='flex items-center gap-2'>
+        <CardTitle className='flex flex-wrap items-center gap-2'>
           <BotIcon className='size-5 text-primary' />
           {t('monitoring.ai.title')}
           {working ? <Spinner className='size-4' /> : null}
@@ -58,6 +58,14 @@ export function AiDiagnosisCard({
                   defaultValue: incident.aiConfidence,
                 }),
               })}
+            </StatusBadge>
+          ) : null}
+          {incident.aiVerdict ? (
+            <StatusBadge
+              tone={incident.aiVerdict === 'outage' ? 'warning' : 'success'}
+              size='sm'
+            >
+              {t(`monitoring.ai.verdict.${incident.aiVerdict}`)}
             </StatusBadge>
           ) : null}
         </CardTitle>
@@ -90,7 +98,7 @@ export function AiDiagnosisCard({
       </CardHeader>
       <CardContent className='space-y-4 text-sm'>
         {incident.aiSummary ? (
-          <p className='text-base leading-7 font-medium'>
+          <p className='text-base leading-7 font-medium break-words'>
             {incident.aiSummary}
           </p>
         ) : null}

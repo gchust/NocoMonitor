@@ -122,6 +122,8 @@ export interface Incident {
   aiSummary: string | null;
   aiRootCause: string | null;
   aiConfidence: string | null;
+  /** The agent's judgement: a real outage, or a false alarm the monitor rather than the service should fix. */
+  aiVerdict: 'outage' | 'falseAlarm' | null;
   aiSuggestedActions: unknown[] | null;
   aiUpdatedAt: string | null;
 }
@@ -429,4 +431,29 @@ export interface AlertDelivery {
   at: string;
   status: AlertDeliveryStatus;
   channels: { name: string; status: AlertDeliveryStatus }[];
+}
+
+/** The shortest a failed stretch is drawn, so a single failed check stays visible on a week's axis. */
+const MIN_RUN_MS = 60_000;
+
+/**
+ * The stretches in which checks failed, as [from, to] times: from the first failed check to the next check that
+ * answered, or to the last failed one while it is still failing. Checks come oldest first.
+ */
+export function downRuns(checks: readonly Check[]): [number, number][] {
+  const runs: [number, number][] = [];
+  let start: number | null = null;
+  let last = 0;
+  for (const check of checks) {
+    const at = new Date(check.checkedAt).getTime();
+    if (check.status === 'down') {
+      start ??= at;
+      last = at;
+    } else if (start !== null) {
+      runs.push([start, at]);
+      start = null;
+    }
+  }
+  if (start !== null) runs.push([start, last]);
+  return runs.map(([from, to]) => [from, Math.max(to, from + MIN_RUN_MS)]);
 }

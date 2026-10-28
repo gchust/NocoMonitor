@@ -21,10 +21,19 @@ export function resolveLanguage(
 export interface IncidentWording {
   downTitle(monitor: string): string;
   detected(error: string | null, failures: number): string;
+  failedAgain(error: string | null): string;
+  recovered(successes: number): string;
+  answeringAgain(): string;
 }
 
 export const ENGLISH_WORDING: IncidentWording = {
   downTitle: (monitor) => `${monitor} is down`,
   detected: (error, failures) =>
     `Automatically detected: ${error ?? 'the check failed'} (${failures} consecutive failures).`,
+  failedAgain: (error) =>
+    `The monitor failed again: ${error ?? 'the check failed'}.`,
+  recovered: (successes) =>
+    `The monitor recovered after ${successes} consecutive successful checks.`,
+  answeringAgain: () =>
+    'The monitor is answering again. The incident stays open until someone resolves it.',
 };

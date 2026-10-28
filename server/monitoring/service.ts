@@ -6,6 +6,7 @@ import { ENGLISH_WORDING, type IncidentWording } from './language.js';
 import { probe } from './probe.js';
 import type {
   Actor,
+  AiVerdict,
   CheckRecord,
   CheckStatus,
   DailyStatRecord,
@@ -276,9 +277,16 @@ export class MonitoringService {
     checkedAt: Date,
   ): Promise<CheckOutcome | null> {
     const events: MonitoringEvent[] = [];
-    // Read before the transaction, and only when this check could open an incident.
-    const wording =
-      result.status === 'down' ? await this.wording() : ENGLISH_WORDING;
+    // Read before the transaction, and only when this check could open, update or resolve an incident: a failing check,
+    // or a passing one of a monitor that is down.
+    const mayChangeIncident =
+      result.status === 'down' ||
+      (
+        await this.db
+          .repository<MonitorRecord>('mnMonitors')
+          .findOne({ filter: { id: monitorId } })
+      )?.status === 'down';
+    const wording = mayChangeIncident ? await this.wording() : ENGLISH_WORDING;
     const outcome = await this.db.transaction(async (conn) => {
       const monitors = conn.repository<MonitorRecord>('mnMonitors');
       const monitor = await monitors.findOne({ filter: { id: monitorId } });
@@ -348,7 +356,7 @@ export class MonitoringService {
         } else {
           await this.addUpdate(conn, open.id, {
             kind: 'system',
-            body: `The monitor failed again: ${result.error ?? 'the check failed'}.`,
+            body: wording.failedAgain(result.error),
             actor: SYSTEM,
           });
         }
@@ -359,7 +367,7 @@ export class MonitoringService {
             open,
             'resolved',
             {
-              body: `The monitor recovered after ${next.consecutiveSuccesses} consecutive successful checks.`,
+              body: wording.recovered(next.consecutiveSuccesses),
               actor: SYSTEM,
               publicVisible: true,
             },
@@ -371,7 +379,7 @@ export class MonitoringService {
         } else {
           await this.addUpdate(conn, open.id, {
             kind: 'system',
-            body: 'The monitor is answering again. The incident stays open until someone resolves it.',
+            body: wording.answeringAgain(),
             actor: SYSTEM,
           });
         }
@@ -643,6 +651,7 @@ export class MonitoringService {
       summary: string;
       rootCause: string | null;
       confidence: string | null;
+      verdict: AiVerdict | null;
       suggestedActions: unknown[];
       actor: Actor;
     },
@@ -659,14 +668,15 @@ export class MonitoringService {
           aiSummary: input.summary,
           aiRootCause: input.rootCause,
           aiConfidence: input.confidence,
+          aiVerdict: input.verdict,
           aiSuggestedActions: input.suggestedActions,
           aiUpdatedAt: now,
           updatedAt: now,
         },
       });
+      // The timeline marks the entry as a diagnosis: no labels of its own, which would stay in one language.
       const lines = [input.summary];
-      if (input.rootCause) lines.push('', `Root cause: ${input.rootCause}`);
-      if (input.confidence) lines.push(`Confidence: ${input.confidence}`);
+      if (input.rootCause) lines.push('', input.rootCause);
       await this.addUpdate(conn, incidentId, {
         kind: 'diagnosis',
         body: lines.join('\n'),

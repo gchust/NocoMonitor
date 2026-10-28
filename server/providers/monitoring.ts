@@ -247,6 +247,14 @@ export default class MonitoringProvider extends ServiceProvider<Application> {
           count,
           ...raw,
         }),
+      failedAgain: (error) =>
+        t('monitoring.incident.failedAgain', {
+          error: error ?? t('monitoring.incident.checkFailed'),
+          ...raw,
+        }),
+      recovered: (count) =>
+        t('monitoring.incident.recovered', { count, ...raw }),
+      answeringAgain: () => t('monitoring.incident.answeringAgain'),
     };
   }
 

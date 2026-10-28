@@ -8,7 +8,13 @@ import {
   Trash2Icon,
 } from 'lucide-react';
 import { useState, type ReactElement } from 'react';
-import { Link, useNavigate, useOutletContext, useParams } from 'react-router';
+import {
+  Link,
+  useNavigate,
+  useOutletContext,
+  useParams,
+  useSearchParams,
+} from 'react-router';
 
 import { BackButton } from '#components/back-button';
 import { PageContainer } from '#components/page-container';
@@ -88,7 +94,13 @@ export default function MonitorDetailPage(): ReactElement {
   const parent = useOutletContext<MonitorsOutletContext>();
   const canManage = useCanManage();
   const [hours, setHours] = useState<number>(24);
+  const [searchParams] = useSearchParams();
   const [editing, setEditing] = useState(0);
+  // `?edit` opens the editor once the monitor and the viewer's permissions are known: an incident the agent called a
+  // false alarm leads here to change the monitor.
+  const [editRequested, setEditRequested] = useState(() =>
+    searchParams.has('edit'),
+  );
   const [deleting, setDeleting] = useState(false);
   const [busy, setBusy] = useState<string>();
   const path = `monitors/${encodeURIComponent(monitorId)}`;
@@ -103,6 +115,10 @@ export default function MonitorDetailPage(): ReactElement {
   const data = detail.data?.data;
   const monitor = data?.monitor;
   const checkList = checks.data?.data ?? [];
+  if (editRequested && monitor && canManage) {
+    setEditRequested(false);
+    setEditing((count) => count + 1);
+  }
 
   const reload = (): void => {
     detail.reload();

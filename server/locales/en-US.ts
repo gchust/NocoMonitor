@@ -9,6 +9,11 @@ const enUS = {
       detected:
         'Automatically detected: {{error}} ({{count}} consecutive failures).',
       checkFailed: 'the check failed',
+      failedAgain: 'The monitor failed again: {{error}}.',
+      recovered:
+        'The monitor recovered after {{count}} consecutive successful checks.',
+      answeringAgain:
+        'The monitor is answering again. The incident stays open until someone resolves it.',
     },
     // Alert notifications, in the language AI settings choose.
     notify: {

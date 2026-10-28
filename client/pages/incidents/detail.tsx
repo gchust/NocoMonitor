@@ -1,6 +1,12 @@
 import { useApiClient, useToaster } from '@nocobase/app-client';
 import { useTranslation } from '@nocobase/i18n/client';
-import { CheckIcon, SparklesIcon, XIcon } from 'lucide-react';
+import {
+  CheckIcon,
+  CircleCheckIcon,
+  PencilIcon,
+  SparklesIcon,
+  XIcon,
+} from 'lucide-react';
 import {
   useId,
   useRef,
@@ -34,6 +40,7 @@ import {
 import { Skeleton } from '#components/ui/skeleton';
 import { Spinner } from '#components/ui/spinner';
 import { Textarea } from '#components/ui/textarea';
+import { cn } from 'cn';
 
 import { useApiData } from '../../hooks/use-api-data.js';
 import {
@@ -65,6 +72,9 @@ import { AiDiagnosisCard } from './ai-diagnosis-card.js';
 import { IncidentTimeline } from './incident-timeline.js';
 import { RemediationPanel } from './remediation-panel.js';
 import { useDiagnose, type Diagnose } from './use-diagnose.js';
+
+/** The one step of the automatic response that waits on the viewer. */
+type NextStep = 'approval' | 'falseAlarm' | 'diagnose' | 'retry';
 
 interface IncidentDetail {
   incident: Incident;
@@ -101,11 +111,14 @@ export default function IncidentDetailPage(): ReactElement {
       ? null
       : pendingFix
         ? 'approval'
-        : incident.aiState === 'none'
-          ? 'diagnose'
-          : incident.aiState === 'failed'
-            ? 'retry'
-            : null;
+        : incident.aiVerdict === 'falseAlarm' &&
+            incident.aiState === 'completed'
+          ? 'falseAlarm'
+          : incident.aiState === 'none'
+            ? 'diagnose'
+            : incident.aiState === 'failed'
+              ? 'retry'
+              : null;
 
   const reload = (): void => {
     detail.reload();
@@ -183,6 +196,7 @@ export default function IncidentDetailPage(): ReactElement {
 
             <ResponseCard
               incident={incident}
+              monitorId={data.monitor?.id ?? null}
               fixes={fixOptions}
               pendingFix={pendingFix ?? null}
               nextStep={nextStep}
@@ -190,7 +204,7 @@ export default function IncidentDetailPage(): ReactElement {
               onChanged={reload}
             />
 
-            <div className='grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]'>
+            <div className='grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]'>
               <div className='space-y-6'>
                 <AiDiagnosisCard
                   incident={incident}
@@ -242,12 +256,14 @@ function ResponseCard({
   pendingFix,
   nextStep,
   diagnosis,
+  monitorId,
   onChanged,
 }: {
   readonly incident: Incident;
   readonly fixes: RemediationOptions | undefined;
   readonly pendingFix: Remediation | null;
-  readonly nextStep: 'approval' | 'diagnose' | 'retry' | null;
+  readonly nextStep: NextStep | null;
+  readonly monitorId: string | null;
   readonly diagnosis: Diagnose;
   readonly onChanged: () => void;
 }): ReactElement {
@@ -257,6 +273,7 @@ function ResponseCard({
   const { diagnose, asking } = diagnosis;
   const [approving, setApproving] = useState<Remediation | null>(null);
   const [rejecting, setRejecting] = useState(false);
+  const [resolving, setResolving] = useState(false);
   // Deciding a fix removes the buttons that were focused: focus returns to this card, not to the page.
   const cardRef = useRef<HTMLDivElement>(null);
   const steps = usePipelineSteps({
@@ -283,6 +300,37 @@ function ResponseCard({
     }
   };
 
+  // Taking the agent's word that nothing is broken: resolve, with its summary as the closing update.
+  const acceptFalseAlarm = async (): Promise<void> => {
+    setResolving(true);
+    try {
+      await api.request({
+        path: `incidents/${encodeURIComponent(incident.id)}/updates`,
+        method: 'POST',
+        json: {
+          status: 'resolved',
+          body: t('monitoring.ai.verdict.resolvedBody', {
+            summary: incident.aiSummary ?? '',
+          }),
+          publicVisible: false,
+        },
+      });
+      toaster.show({
+        type: 'success',
+        title: t('monitoring.ai.verdict.resolved'),
+      });
+      cardRef.current?.focus();
+    } catch (error) {
+      toaster.show({
+        type: 'error',
+        title: errorText(error, t('monitoring.errors.save')),
+      });
+    } finally {
+      setResolving(false);
+      onChanged();
+    }
+  };
+
   return (
     <Card ref={cardRef} tabIndex={-1} className='outline-none'>
       <CardHeader>
@@ -297,7 +345,15 @@ function ResponseCard({
       <CardContent className='flex flex-col gap-4'>
         <AiPipeline steps={steps} />
         {nextStep ? (
-          <div className='flex flex-col gap-3 rounded-lg border border-(--status-warning)/25 bg-(--status-warning-background) p-4 sm:flex-row sm:items-center'>
+          <div
+            className={cn(
+              'flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center',
+              // The agent's all-clear reads as information, not as a warning.
+              nextStep === 'falseAlarm'
+                ? 'border-primary/20 bg-primary/5'
+                : 'border-(--status-warning)/25 bg-(--status-warning-background)',
+            )}
+          >
             <div className='min-w-0 flex-1 text-sm'>
               {nextStep === 'approval' && pendingFix ? (
                 <>
@@ -309,6 +365,15 @@ function ResponseCard({
                   <LongText className='mt-1 text-muted-foreground'>
                     {pendingFix.reason}
                   </LongText>
+                </>
+              ) : nextStep === 'falseAlarm' ? (
+                <>
+                  <p className='font-medium'>
+                    {t('monitoring.pipeline.next.falseAlarm')}
+                  </p>
+                  <p className='mt-1 text-muted-foreground'>
+                    {t('monitoring.pipeline.next.falseAlarmHint')}
+                  </p>
                 </>
               ) : (
                 <p className='font-medium'>
@@ -333,6 +398,34 @@ function ResponseCard({
                   >
                     <CheckIcon data-icon='inline-start' />
                     {t('monitoring.fixes.approve')}
+                  </Button>
+                </>
+              ) : nextStep === 'falseAlarm' ? (
+                <>
+                  {monitorId ? (
+                    <Button
+                      variant='outline'
+                      nativeButton={false}
+                      render={
+                        <Link
+                          to={`/monitors/${encodeURIComponent(monitorId)}?edit`}
+                        />
+                      }
+                    >
+                      <PencilIcon data-icon='inline-start' />
+                      {t('monitoring.ai.verdict.editMonitor')}
+                    </Button>
+                  ) : null}
+                  <Button
+                    disabled={resolving}
+                    onClick={() => void acceptFalseAlarm()}
+                  >
+                    {resolving ? (
+                      <Spinner data-icon='inline-start' />
+                    ) : (
+                      <CircleCheckIcon data-icon='inline-start' />
+                    )}
+                    {t('monitoring.ai.verdict.accept')}
                   </Button>
                 </>
               ) : (

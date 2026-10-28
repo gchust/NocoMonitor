@@ -6,6 +6,9 @@ const zhCN: AppServerResource = {
       downTitle: '{{monitor}} 不可用',
       detected: '自动发现：{{error}}（连续 {{count}} 次失败）。',
       checkFailed: '检查失败',
+      failedAgain: '监控项再次失败：{{error}}。',
+      recovered: '监控项连续 {{count}} 次检查成功，已恢复。',
+      answeringAgain: '监控项已恢复响应。事件会保持开启，直到有人将其解决。',
     },
     notify: {
       incidentOpened: {

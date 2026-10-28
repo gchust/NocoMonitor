@@ -4,9 +4,10 @@ import {
   CircleCheckIcon,
   TriangleAlertIcon,
 } from 'lucide-react';
-import { useEffect, type ReactElement } from 'react';
+import { useEffect, useState, type ReactElement } from 'react';
 import { useParams } from 'react-router';
 
+import { Button } from '#components/ui/button';
 import { Skeleton } from '#components/ui/skeleton';
 import { cn } from 'cn';
 
@@ -44,6 +45,9 @@ interface PublicStatus {
       status: MonitorStatus;
     }[];
   }[];
+  /** Incidents the probes opened and resolved within `blipMinutes`: counted, not listed. */
+  blips: number;
+  blipMinutes: number;
   incidents: {
     id: string;
     serviceId: string;
@@ -110,6 +114,8 @@ export default function PublicStatusPage(): ReactElement {
   const past =
     data?.incidents.filter((incident) => incident.status === 'resolved') ?? [];
   const banner = data ? BANNER[data.health] : undefined;
+  const [showAll, setShowAll] = useState(false);
+  const shownPast = showAll ? past : past.slice(0, PAST_SHOWN);
 
   return (
     <div className='min-h-screen bg-background text-foreground'>
@@ -204,15 +210,27 @@ export default function PublicStatusPage(): ReactElement {
               <h2 id='public-history' className='text-lg font-medium'>
                 {t('monitoring.public.pastIncidents')}
               </h2>
-              {past.length ? (
-                past.map((incident) => (
-                  <IncidentBlock key={incident.id} incident={incident} />
-                ))
-              ) : (
+              {shownPast.map((incident) => (
+                <IncidentBlock key={incident.id} incident={incident} />
+              ))}
+              {past.length > shownPast.length ? (
+                <Button variant='outline' onClick={() => setShowAll(true)}>
+                  {t('monitoring.public.showAll', { count: past.length })}
+                </Button>
+              ) : null}
+              {!past.length && !data.blips ? (
                 <p className='text-sm text-muted-foreground'>
                   {t('monitoring.public.noPastIncidents')}
                 </p>
-              )}
+              ) : null}
+              {data.blips ? (
+                <p className='text-sm text-muted-foreground'>
+                  {t('monitoring.public.blips', {
+                    count: data.blips,
+                    minutes: data.blipMinutes,
+                  })}
+                </p>
+              ) : null}
             </section>
 
             <footer className='flex flex-wrap justify-between gap-2 border-t pt-6 text-xs text-muted-foreground'>
@@ -229,6 +247,9 @@ export default function PublicStatusPage(): ReactElement {
     </div>
   );
 }
+
+/** Past incidents listed before "Show all": the latest few are what a visitor reads. */
+const PAST_SHOWN = 5;
 
 function IncidentBlock({
   incident,
