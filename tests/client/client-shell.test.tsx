@@ -87,16 +87,17 @@ describe('application shell', () => {
     expect(
       screen.queryByRole('link', { name: 'Settings' }),
     ).not.toBeInTheDocument();
-    expect(screen.getByText('AI builds freely.')).toBeVisible();
+    expect(screen.getByText('AI-native monitoring')).toBeVisible();
     expect(screen.getByRole('link', { name: 'NocoBase' })).toHaveAttribute(
       'href',
       'https://www.nocobase.com',
     );
     expect(
       screen.getByText('NocoBase', { selector: 'a' }).parentElement,
-    ).toHaveTextContent('NocoBase keeps it reliable.');
-    expect(screen.getByText('Default Template')).toHaveClass('truncate');
-    expect(screen.getByText('v0.0.0')).toHaveClass('truncate');
+    ).toHaveTextContent('Built on NocoBase');
+    expect(screen.getByText('v0.0.0').parentElement).toHaveTextContent(
+      'NocoMonitor v0.0.0',
+    );
     // shadcn's edge rail, with a translated label in place of its built-in one.
     expect(
       screen.getByRole('button', { name: 'Expand or collapse navigation' }),
@@ -199,13 +200,13 @@ describe('application shell', () => {
     expect(
       await screen.findByRole('button', { name: 'Expand navigation' }),
     ).toHaveAttribute('aria-pressed', 'true');
-    // The footer keeps only its shield; focusing it shows the slogan, name and version.
+    // The footer keeps only its icon; focusing it shows the name, version and tagline.
     const footerIcon = screen.getByRole('img', {
-      name: 'AI builds freely. NocoBase keeps it reliable. Default Template v0.0.0',
+      name: 'NocoMonitor v0.0.0 AI-native monitoring Built on NocoBase',
     });
     act(() => footerIcon.focus());
     expect(
-      await screen.findByText('Default Template v0.0.0', {
+      await screen.findByText('NocoMonitor v0.0.0', {
         selector: '[data-slot="tooltip-content"] span',
       }),
     ).toBeVisible();

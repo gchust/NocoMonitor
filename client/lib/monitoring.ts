@@ -214,9 +214,19 @@ export function formatRelative(
 }
 
 /** How long something lasted, such as `2 h 5 min`. */
+/** A unit amount in the reader's language, such as "42 min" or "42分钟". */
+function unit(value: number, name: string, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: name,
+    unitDisplay: 'short',
+  }).format(value);
+}
+
 export function formatDuration(
   from: string,
   to: string | null,
+  locale: string,
   now = Date.now(),
 ): string {
   const ms = Math.max(
@@ -224,11 +234,13 @@ export function formatDuration(
     (to ? new Date(to).getTime() : now) - new Date(from).getTime(),
   );
   const minutes = Math.round(ms / 60000);
-  if (minutes < 1) return `${Math.max(1, Math.round(ms / 1000))} s`;
-  if (minutes < 60) return `${minutes} min`;
+  if (minutes < 1)
+    return unit(Math.max(1, Math.round(ms / 1000)), 'second', locale);
+  if (minutes < 60) return unit(minutes, 'minute', locale);
   const hours = Math.floor(minutes / 60);
-  if (hours < 48) return `${hours} h ${minutes % 60} min`;
-  return `${Math.floor(hours / 24)} d ${hours % 24} h`;
+  if (hours < 48)
+    return `${unit(hours, 'hour', locale)} ${unit(minutes % 60, 'minute', locale)}`;
+  return `${unit(Math.floor(hours / 24), 'day', locale)} ${unit(hours % 24, 'hour', locale)}`;
 }
 
 export interface AiSettings {

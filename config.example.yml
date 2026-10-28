@@ -45,7 +45,7 @@
 # Values under client are public and embedded in the SPA HTML.
 client:
   app:
-    title: NocoBase
+    title: NocoMonitor
     # Defaults apply only when no valid browser-local choice is saved.
     # defaultColorScheme: system # light | dark | system
     # defaultTheme: compact # ID from client/theme/theme-presets.ts
@@ -72,6 +72,8 @@ secrets:
 auth:
   emailAndPassword:
     enabled: true
+    # Accounts are created by administrators: a monitoring console takes no self-registration.
+    disableSignUp: true
     autoSignIn: false
   session:
     storeSessionInDatabase: true

@@ -150,7 +150,11 @@ export default function IncidentsPage(): ReactElement {
                     <span className='ml-auto text-xs text-muted-foreground'>
                       {serviceName.get(incident.serviceId)} ·{' '}
                       {formatDateTime(incident.startedAt, i18n.language)} ·{' '}
-                      {formatDuration(incident.startedAt, incident.resolvedAt)}
+                      {formatDuration(
+                        incident.startedAt,
+                        incident.resolvedAt,
+                        i18n.language,
+                      )}
                     </span>
                   </div>
                   {incident.aiSummary || incident.aiState !== 'none' ? (

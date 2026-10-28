@@ -1,6 +1,26 @@
 import type monitoringEnUS from './en-US.js';
 
 const monitoringZhCN: typeof monitoringEnUS = {
+  // The sign-in pages' panel and the sidebar footer.
+  brand: {
+    eyebrow: 'AI 原生监控',
+    titleFirst: '第一时间发现故障，',
+    titleSecond: '查清原因，',
+    titleThird: '安全地修复。',
+    description:
+      'NocoMonitor 从各个区域检查你的服务，一旦失败立即创建事件，由 Agent 查找根本原因，并在你允许的范围内执行修复。',
+    probes: '多区域检查',
+    probesDescription:
+      '按你设定的频率做 HTTP、关键字和 JSON 检查，并保留可用率历史。',
+    diagnosis: 'Agent 查找原因',
+    diagnosisDescription:
+      '阅读检查记录、重新探测、查看代码，然后记录根本原因。',
+    guardrails: '在护栏内修复',
+    guardrailsDescription:
+      '只执行你列入白名单、经你批准的操作，并由探测验证结果。',
+    builtOn: '基于 <brand>NocoBase</brand> 构建',
+    tagline: 'AI 原生监控',
+  },
   navigation: {
     overview: '总览',
     monitors: '监控项',
@@ -9,7 +29,7 @@ const monitoringZhCN: typeof monitoringEnUS = {
     statusPages: '状态页',
     ai: 'AI 诊断',
     agentManagement: 'Agent 管理',
-    agents: 'Agents',
+    agents: 'Agent',
     runtimes: '运行环境',
     skills: '技能',
     usage: '用量',
@@ -64,7 +84,7 @@ const monitoringZhCN: typeof monitoringEnUS = {
     publicVisible: '在状态页显示',
     recoveryThreshold: '判定恢复的连续成功次数',
     region: '区域',
-    remediationLevel: '自动修复',
+    remediationLevel: 'Agent 修复权限',
     repoUrl: '代码仓库',
     runbook: '运维手册',
     service: '服务',
@@ -114,9 +134,11 @@ const monitoringZhCN: typeof monitoringEnUS = {
     suggest: '建议修复',
     suggestHint: 'Agent 在事件上给出具体的修复建议，由人来执行。',
     approve: '审批后修复',
-    approveHint: '具有管理权限的人批准后，Agent 才可执行白名单内的修复操作。',
+    approveHint:
+      'Agent 可申请白名单内的修复操作，经有管理权限的人批准后由 NocoMonitor 执行。',
     auto: '自动修复',
-    autoHint: 'Agent 自行执行白名单内的修复操作，随后由探测确认服务已恢复。',
+    autoHint:
+      'Agent 申请的白名单修复操作会立即执行，随后由探测确认服务已恢复。',
   },
   uptime: {
     bars: '每日可用率',
@@ -188,11 +210,11 @@ const monitoringZhCN: typeof monitoringEnUS = {
     uptimeHistory: '可用率历史',
     recentChecks: '最近检查',
     incidents: '事件',
-    noIncidents: '没有事件，很好。',
+    noIncidents: '没有事件。',
     assertion: '断言',
     thresholds: '阈值',
     thresholdsValue:
-      '连续失败 {{failures}} 次宕机，连续成功 {{successes}} 次恢复',
+      '连续失败 {{failures}} 次判定宕机，连续成功 {{successes}} 次判定恢复',
   },
   incidents: {
     title: '事件',
@@ -274,7 +296,7 @@ const monitoringZhCN: typeof monitoringEnUS = {
       unavailableAgent: '已配置的 Agent（已不再上报）',
       online: '在线',
       offline: '没有在线的运行环境',
-      busy: '{{count}} 个运行中',
+      busy: '正在执行 {{count}} 个任务',
       runsAs: '自动诊断以保存此设置的 {{name}} 的身份运行。',
       runsAsYou: '保存后，自动诊断将以你的身份运行。',
       auto: '自动诊断新事件',
@@ -285,12 +307,12 @@ const monitoringZhCN: typeof monitoringEnUS = {
       noAgentsHint:
         'Agent 运行在运行环境上：一台已登录 Claude Code 或 Codex 的机器。先连接运行环境，再为它启用 Agent。',
       connectRuntime: '连接运行环境',
-      openAgents: 'Agents',
+      openAgents: '管理 Agent',
       manageRuntimes: '管理运行环境',
       safetyTitle: '安全护栏',
       safety: {
         readOnly:
-          '诊断运行是只读的：服务代码仓库以无推送权限检出，不会提交任何内容。',
+          '诊断只读：Agent 可以查看服务代码，但不会提交或推送任何更改。',
         whitelist:
           'Agent 只能申请服务定义的修复操作，由 NocoMonitor 发起调用，而不是 Agent。',
         tiers:
@@ -329,7 +351,7 @@ const monitoringZhCN: typeof monitoringEnUS = {
     subject: '事件',
     group: '事件',
     read: '读取事件',
-    readDescription: '读取运行所诊断的事件，并重新探测其监控项。',
+    readDescription: '读取本次运行诊断的事件，并重新探测对应的监控项。',
     diagnose: '记录诊断',
     diagnoseDescription: '在事件上记录根本原因、置信度和建议操作。',
     remediate: '申请修复',
@@ -397,7 +419,7 @@ const monitoringZhCN: typeof monitoringEnUS = {
     pastIncidents: '历史事件',
     noPastIncidents: '没有已报告的事件。',
     updated: '更新于 {{when}}',
-    poweredBy: '由 NocoMonitor 提供',
+    poweredBy: '由 NocoMonitor 提供支持',
   },
 };
 

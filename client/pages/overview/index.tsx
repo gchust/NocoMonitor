@@ -161,7 +161,11 @@ export default function OverviewPage(): ReactElement {
                     <SeverityBadge severity={incident.severity} />
                     <span className='ml-auto text-xs text-muted-foreground'>
                       {t('monitoring.incidents.lasting', {
-                        duration: formatDuration(incident.startedAt, null),
+                        duration: formatDuration(
+                          incident.startedAt,
+                          null,
+                          i18n.language,
+                        ),
                       })}
                     </span>
                   </div>

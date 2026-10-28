@@ -10,6 +10,9 @@ const enUS = {
   ...systemEnUS,
   ...fileUi,
   monitoring,
+  // The application's name and its home link, in place of the template's NocoBase.
+  app: { ...systemEnUS.app, title: 'NocoMonitor' },
+  'navigation.brandHome': 'NocoMonitor home',
   // The application's copy goes here, one group per feature. A shared group such as `navigation` is extended by
   // spreading the system one first, `navigation: { ...systemEnUS.navigation, orders: 'Orders' }`, since a group
   // written here replaces the system group of the same name rather than merging with it.

@@ -8,6 +8,9 @@ const zhCN: AppResource = {
   ...systemZhCN,
   ...fileUi,
   monitoring,
+  // The application's name and its home link, in place of the template's NocoBase.
+  app: { ...systemZhCN.app, title: 'NocoMonitor' },
+  'navigation.brandHome': 'NocoMonitor 首页',
 };
 
 export default zhCN;

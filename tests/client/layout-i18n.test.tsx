@@ -85,13 +85,13 @@ describe('shell translations', () => {
     expect(
       screen.getByRole('navigation', { name: 'Breadcrumb' }),
     ).toHaveTextContent('Overview');
-    expect(screen.getByText('AI builds freely.')).toBeVisible();
+    expect(screen.getByText('AI-native monitoring')).toBeVisible();
     await act(() => runtime.changeLanguage('zh-CN'));
     expect(screen.getByRole('navigation', { name: '面包屑' })).toBeVisible();
-    expect(screen.getByText('AI 自由构建')).toBeVisible();
+    expect(screen.getByText('AI 原生监控')).toBeVisible();
     expect(
       screen.getByRole('link', { name: 'NocoBase' }).parentElement,
-    ).toHaveTextContent('NocoBase 保障可靠');
+    ).toHaveTextContent('基于 NocoBase 构建');
     expect(
       screen.getByRole('button', { name: '展开或收起导航' }),
     ).toHaveAttribute('title', '展开或收起导航');

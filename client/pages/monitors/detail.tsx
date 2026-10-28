@@ -409,6 +409,7 @@ export default function MonitorDetailPage(): ReactElement {
                             {formatDuration(
                               incident.startedAt,
                               incident.resolvedAt,
+                              i18n.language,
                             )}
                           </p>
                         </li>

@@ -109,7 +109,7 @@ describe('authentication translations', () => {
     expect(screen.getByLabelText('用户名或邮箱')).toBeVisible();
     expect(screen.getByRole('button', { name: '显示密码' })).toBeVisible();
     expect(screen.getByRole('link', { name: '注册' })).toBeVisible();
-    expect(screen.getByText('AI 原生应用平台')).toBeVisible();
+    expect(screen.getByText('AI 原生监控')).toBeVisible();
     await act(() => value.changeLanguage('en-US'));
     expect(screen.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
   });

@@ -147,7 +147,11 @@ export default function IncidentDetailPage(): ReactElement {
                 {formatDateTime(incident.startedAt, i18n.language)}
               </Fact>
               <Fact label={t('monitoring.incidents.duration')}>
-                {formatDuration(incident.startedAt, incident.resolvedAt)}
+                {formatDuration(
+                  incident.startedAt,
+                  incident.resolvedAt,
+                  i18n.language,
+                )}
                 {incident.resolvedAt
                   ? ''
                   : ` · ${t('monitoring.incidents.ongoing')}`}
@@ -303,7 +307,11 @@ function AiPanel({
                         tone={action.risk === 'low' ? 'success' : 'warning'}
                         size='sm'
                       >
-                        {t('monitoring.ai.risk', { level: action.risk })}
+                        {t('monitoring.ai.risk', {
+                          level: t(`monitoring.ai.level.${action.risk}`, {
+                            defaultValue: action.risk,
+                          }),
+                        })}
                       </StatusBadge>
                     ) : null}
                   </div>

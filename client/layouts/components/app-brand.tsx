@@ -7,41 +7,28 @@ export interface AppBrandProps {
   readonly compact?: boolean;
 }
 
+/**
+ * NocoMonitor's mark and name, in place of the template's NocoBase logo images. The name is text, so it follows the
+ * theme in both color modes without a second image.
+ */
 export function AppBrand(inputProps: AppBrandProps): ReactElement {
   const { t } = useTranslation();
   const { compact = false } = inputProps;
 
   return (
     <Link
-      aria-label={t('navigation.brandHome', { defaultValue: 'NocoBase home' })}
-      className='flex min-w-0 items-center text-foreground'
+      aria-label={t('navigation.brandHome')}
+      className='flex min-w-0 items-center gap-2 text-foreground'
       to='/'
     >
-      {compact ? (
-        <span className='size-9 shrink-0 overflow-hidden'>
-          <img
-            src={resolveAssetUrl('/assets/logo-mark.png')}
-            alt=''
-            className='size-full object-contain dark:hidden'
-          />
-          <img
-            src={resolveAssetUrl('/assets/logo-mark-dark.png')}
-            alt=''
-            className='hidden size-full object-contain dark:block'
-          />
-        </span>
-      ) : (
-        <span className='h-8 min-w-0 overflow-hidden'>
-          <img
-            src={resolveAssetUrl('/assets/logo.png')}
-            alt='NocoBase'
-            className='h-full w-auto object-contain dark:hidden'
-          />
-          <img
-            src={resolveAssetUrl('/assets/logo-dark.png')}
-            alt='NocoBase'
-            className='hidden h-full w-auto object-contain dark:block'
-          />
+      <img
+        src={resolveAssetUrl('/assets/nocomonitor-mark.svg')}
+        alt=''
+        className={compact ? 'size-9 shrink-0' : 'size-8 shrink-0'}
+      />
+      {compact ? null : (
+        <span className='truncate text-lg font-semibold tracking-tight'>
+          {t('app.title')}
         </span>
       )}
     </Link>

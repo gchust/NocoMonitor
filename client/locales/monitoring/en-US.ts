@@ -1,5 +1,25 @@
 /** NocoMonitor's own copy: every monitoring page, the public status page, and the permission titles. */
 const monitoringEnUS = {
+  // The sign-in pages' panel and the sidebar footer.
+  brand: {
+    eyebrow: 'AI-native monitoring',
+    titleFirst: 'Know when it breaks.',
+    titleSecond: 'Know why.',
+    titleThird: 'Fix it safely.',
+    description:
+      'NocoMonitor checks your services from every region, opens an incident the moment they fail, and has an agent find the cause — and apply a fix only as far as you allow.',
+    probes: 'Checks from every region',
+    probesDescription:
+      'HTTP, keyword and JSON checks on your schedule, with uptime history.',
+    diagnosis: 'Agents find the cause',
+    diagnosisDescription:
+      'Reads the checks, probes again and reads the code, then records the root cause.',
+    guardrails: 'Fixes within your guardrails',
+    guardrailsDescription:
+      'Only the actions you whitelist, approved by you, verified by the probes.',
+    builtOn: 'Built on <brand>NocoBase</brand>',
+    tagline: 'AI-native monitoring',
+  },
   navigation: {
     overview: 'Overview',
     monitors: 'Monitors',
@@ -64,7 +84,7 @@ const monitoringEnUS = {
     publicVisible: 'Show on the status page',
     recoveryThreshold: 'Successes to recover',
     region: 'Region',
-    remediationLevel: 'Automatic remediation',
+    remediationLevel: 'Agent remediation',
     repoUrl: 'Source repository',
     runbook: 'Runbook',
     service: 'Service',
@@ -116,10 +136,10 @@ const monitoringEnUS = {
       'The agent proposes concrete fixes on the incident; people carry them out.',
     approve: 'Fix after approval',
     approveHint:
-      'The agent may run a whitelisted fix once someone with Manage permission approves it.',
+      'The agent may request a whitelisted fix; NocoMonitor runs it once someone with Manage permission approves.',
     auto: 'Fix automatically',
     autoHint:
-      'The agent runs whitelisted fixes on its own; the probes then verify the service has recovered.',
+      'A whitelisted fix the agent requests runs at once; the probes then verify the service recovered.',
   },
   uptime: {
     bars: 'Daily uptime',
@@ -196,10 +216,11 @@ const monitoringEnUS = {
     uptimeHistory: 'Uptime history',
     recentChecks: 'Recent checks',
     incidents: 'Incidents',
-    noIncidents: 'No incidents. Good.',
+    noIncidents: 'No incidents.',
     assertion: 'Assertion',
     thresholds: 'Thresholds',
-    thresholdsValue: 'down after {{failures}}, up after {{successes}}',
+    thresholdsValue:
+      'Down after {{failures}} failed checks, up after {{successes}} successful ones',
   },
   incidents: {
     title: 'Incidents',
@@ -294,12 +315,12 @@ const monitoringEnUS = {
       noAgentsHint:
         'Agents run on a runtime: a machine with Claude Code or Codex signed in. Connect one, then enable an agent for it.',
       connectRuntime: 'Connect a runtime',
-      openAgents: 'Agents',
+      openAgents: 'Manage agents',
       manageRuntimes: 'Manage runtimes',
       safetyTitle: 'Guardrails',
       safety: {
         readOnly:
-          'Diagnosis runs are read-only: the service’s repository is checked out without push rights, and nothing is committed.',
+          'Diagnosis is read-only: the agent reads the service’s code but never commits or pushes a change.',
         whitelist:
           'An agent can only request a fix the service defines; NocoMonitor makes the call, not the agent.',
         tiers:
