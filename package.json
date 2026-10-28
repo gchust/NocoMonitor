@@ -120,7 +120,7 @@
     "Dockerfile",
     "Dockerfile.dockerignore",
     "config.example.yml",
-    "README.MD",
+    "README.md",
     "AGENTS.md",
     ".agents/rules",
     "CLAUDE.md",

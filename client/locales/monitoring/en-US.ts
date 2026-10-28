@@ -7,8 +7,8 @@ const monitoringEnUS = {
     titleSecond: 'Know why.',
     titleThird: 'Fix it safely.',
     description:
-      'NocoMonitor checks your services from every region, opens an incident the moment they fail, and has an agent find the cause — and apply a fix only as far as you allow.',
-    probes: 'Checks from every region',
+      'NocoMonitor checks your services around the clock, opens an incident the moment they fail, and has an agent find the cause — and apply a fix only as far as you allow.',
+    probes: 'Checks around the clock',
     probesDescription:
       'HTTP, keyword and JSON checks on your schedule, with uptime history.',
     diagnosis: 'Agents find the cause',
@@ -280,12 +280,12 @@ const monitoringEnUS = {
         detect: {
           title: 'Detect',
           description:
-            'Probes in every region check each service; consecutive failures open an incident.',
+            'Probes check each service on its schedule; consecutive failures open an incident.',
         },
         diagnose: {
           title: 'Diagnose',
           description:
-            'The agent reads the checks, compares regions, probes again and reads the service’s code, then records the root cause.',
+            'The agent reads the checks, compares the service’s other monitors, probes again and reads the service’s code, then records the root cause.',
         },
         remediate: {
           title: 'Remediate',

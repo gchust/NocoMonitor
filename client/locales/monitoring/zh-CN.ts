@@ -8,8 +8,8 @@ const monitoringZhCN: typeof monitoringEnUS = {
     titleSecond: '查清原因，',
     titleThird: '安全地修复。',
     description:
-      'NocoMonitor 从各个区域检查你的服务，一旦失败立即创建事件，由 Agent 查找根本原因，并在你允许的范围内执行修复。',
-    probes: '多区域检查',
+      'NocoMonitor 全天候检查你的服务，一旦失败立即创建事件，由 Agent 查找根本原因，并在你允许的范围内执行修复。',
+    probes: '全天候检查',
     probesDescription:
       '按你设定的频率做 HTTP、关键字和 JSON 检查，并保留可用率历史。',
     diagnosis: 'Agent 查找原因',
@@ -272,12 +272,12 @@ const monitoringZhCN: typeof monitoringEnUS = {
       steps: {
         detect: {
           title: '发现',
-          description: '各区域的探测定时检查每个服务，连续失败即创建事件。',
+          description: '探测按计划检查每个服务，连续失败即创建事件。',
         },
         diagnose: {
           title: '诊断',
           description:
-            'Agent 阅读检查记录、对比各区域、重新探测并查看服务代码，然后记录根本原因。',
+            'Agent 阅读检查记录、对比该服务的其他监控项、重新探测并查看服务代码，然后记录根本原因。',
         },
         remediate: {
           title: '修复',

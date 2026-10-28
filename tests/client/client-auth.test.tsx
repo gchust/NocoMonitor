@@ -99,7 +99,7 @@ describe('application authentication pages', () => {
     expect(panel).toHaveClass('hidden', 'xl:block');
     // NocoMonitor's own panel, in place of the template's NocoBase one.
     expect(panel).toHaveTextContent('AI-native monitoring');
-    expect(panel).toHaveTextContent('Checks from every region');
+    expect(panel).toHaveTextContent('Checks around the clock');
     expect(panel).toHaveTextContent('Agents find the cause');
     expect(panel).toHaveTextContent('Fixes within your guardrails');
     expect(panel).toHaveTextContent('Built on NocoBase');
