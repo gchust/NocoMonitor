@@ -26,6 +26,7 @@ import {
   IncidentStatusBadge,
   LoadError,
   StatusDot,
+  UptimeAxis,
   UptimeBars,
 } from '../monitoring/components.js';
 
@@ -185,14 +186,7 @@ export default function PublicStatusPage(): ReactElement {
                     </span>
                   </div>
                   <UptimeBars days={service.days} />
-                  <div className='flex justify-between text-xs text-muted-foreground'>
-                    <span>
-                      {t('monitoring.uptime.daysAgo', {
-                        count: service.days.length,
-                      })}
-                    </span>
-                    <span>{t('monitoring.uptime.today')}</span>
-                  </div>
+                  <UptimeAxis days={service.days} />
                   <ul className='flex flex-wrap gap-x-5 gap-y-1 text-sm text-muted-foreground'>
                     {service.components.map((component) => (
                       <li

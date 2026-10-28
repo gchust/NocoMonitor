@@ -31,8 +31,10 @@ import {
   type Incident,
   type InvestigationActivity,
   type Remediation,
+  type UptimeDay,
 } from '../../client/lib/monitoring.js';
 import IncidentDetailPage from '../../client/pages/incidents/detail.js';
+import { UptimeAxis } from '../../client/pages/monitoring/components.js';
 import OverviewPage from '../../client/pages/overview/index.js';
 
 const copy = enUS.monitoring;
@@ -215,6 +217,7 @@ beforeEach(() => {
     aiConfidence: 'high',
     aiSuggestedActions: [],
     aiUpdatedAt: '2026-10-27T10:02:00Z',
+    aiFirstDiagnosedAt: '2026-10-27T10:02:00Z',
     createdAt: '2026-10-27T10:00:00Z',
     updatedAt: '2026-10-27T10:02:00Z',
   } as Incident;
@@ -521,6 +524,48 @@ describe('live investigation', () => {
         ([call]) => call.method === 'GET' && call.path === 'incidents/inc-1',
       ).length;
     await waitFor(() => expect(reads()).toBeGreaterThan(1));
+  });
+});
+
+describe('honest numbers', () => {
+  it('tells the time to the first root cause, not to the latest diagnosis', async () => {
+    incident = {
+      ...incident,
+      aiFirstDiagnosedAt: '2026-10-27T10:02:00Z',
+      aiUpdatedAt: '2026-10-27T19:54:00Z',
+    };
+    await renderAt('/incidents/inc-1');
+    expect(
+      await screen.findByText(
+        copy.pipeline.diagnose.completed.replace('{{duration}}', '2 min'),
+      ),
+    ).toBeVisible();
+  });
+
+  it('says since when the uptime bars have data', async () => {
+    const day = (date: string, total: number): UptimeDay => ({
+      day: date,
+      total,
+      up: total,
+      degraded: 0,
+      down: 0,
+      uptime: total ? 1 : null,
+      avgLatencyMs: null,
+    });
+    const render = (days: UptimeDay[]) =>
+      renderWithApp(<UptimeAxis days={days} />, {
+        namespace: packageMetadata.name,
+        namespaces: { [packageMetadata.name]: enUS },
+      });
+    const first = await render([
+      day('2026-10-26', 0),
+      day('2026-10-27', 12),
+      day('2026-10-28', 30),
+    ]);
+    expect(screen.getByText('Since Oct 27, 2026')).toBeVisible();
+    first.unmount();
+    await render([day('2026-10-27', 12), day('2026-10-28', 30)]);
+    expect(screen.getByText('2 days ago')).toBeVisible();
   });
 });
 

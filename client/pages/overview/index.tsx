@@ -57,6 +57,7 @@ import {
   LoadError,
   SeverityBadge,
   StatusDot,
+  UptimeAxis,
   UptimeBars,
 } from '../monitoring/components.js';
 import { CurrentStep } from '../incidents/investigation-steps.js';
@@ -415,14 +416,7 @@ export default function OverviewPage(): ReactElement {
                   </CardHeader>
                   <CardContent className='space-y-4'>
                     <UptimeBars days={entry.days} />
-                    <div className='flex justify-between text-xs text-muted-foreground'>
-                      <span>
-                        {t('monitoring.uptime.daysAgo', {
-                          count: entry.days.length,
-                        })}
-                      </span>
-                      <span>{t('monitoring.uptime.today')}</span>
-                    </div>
+                    <UptimeAxis days={entry.days} />
                     <ul className='grid gap-2 sm:grid-cols-2 xl:grid-cols-4'>
                       {entry.monitors.map((monitor) => (
                         <li key={monitor.id}>

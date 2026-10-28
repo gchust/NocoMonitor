@@ -761,6 +761,7 @@ export class MonitoringService {
           aiVerdict: input.verdict,
           aiSuggestedActions: input.suggestedActions,
           aiUpdatedAt: now,
+          aiFirstDiagnosedAt: incident.aiFirstDiagnosedAt ?? now,
           updatedAt: now,
         },
       });

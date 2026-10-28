@@ -152,6 +152,7 @@ export const IncidentSchema = z
     aiVerdict: z.enum(AI_VERDICTS).nullable(),
     aiSuggestedActions: z.array(z.unknown()).nullable(),
     aiUpdatedAt: NullableTime,
+    aiFirstDiagnosedAt: NullableTime,
     createdById: z.string().nullable(),
     createdAt: Time,
     updatedAt: Time,

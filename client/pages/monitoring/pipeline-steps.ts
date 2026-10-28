@@ -63,11 +63,12 @@ export function usePipelineSteps({
         running: { state: 'active', text: p('diagnose.running') },
         completed: {
           state: 'done',
-          text: incident.aiUpdatedAt
+          // The time to the first root cause: a diagnosis asked for again later does not make it longer.
+          text: incident.aiFirstDiagnosedAt
             ? p('diagnose.completed', {
                 duration: formatDuration(
                   incident.startedAt,
-                  incident.aiUpdatedAt,
+                  incident.aiFirstDiagnosedAt,
                   i18n.language,
                 ),
               })

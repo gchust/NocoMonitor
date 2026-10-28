@@ -128,6 +128,8 @@ export interface Incident {
   aiVerdict: 'outage' | 'falseAlarm' | null;
   aiSuggestedActions: unknown[] | null;
   aiUpdatedAt: string | null;
+  /** When the agent first recorded a diagnosis, for the time it took to find the root cause. */
+  aiFirstDiagnosedAt: string | null;
 }
 
 export interface IncidentUpdate {

@@ -289,6 +289,31 @@ export function UptimeBars({
   );
 }
 
+/**
+ * The time axis under `UptimeBars`: from the first day to today. When checks began within the window, it says so,
+ * so an uptime read over two days does not pass for one read over ninety.
+ */
+export function UptimeAxis({
+  days,
+}: {
+  readonly days: readonly UptimeDay[];
+}): ReactElement {
+  const { t, i18n } = useTranslation();
+  const first = days.findIndex((day) => day.total > 0);
+  return (
+    <div className='flex justify-between gap-4 text-xs text-muted-foreground'>
+      <span>
+        {first > 0
+          ? t('monitoring.uptime.since', {
+              date: formatDay(days[first].day, i18n.language),
+            })
+          : t('monitoring.uptime.daysAgo', { count: days.length })}
+      </span>
+      <span>{t('monitoring.uptime.today')}</span>
+    </div>
+  );
+}
+
 /** What a page shows when its data could not be read, with a way to try again. */
 export function LoadError({
   error,

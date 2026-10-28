@@ -488,6 +488,25 @@ test('the agent’s verdict is recorded and reaches the incident', async ({
     aiVerdict: 'falseAlarm',
     aiConfidence: 'high',
   });
+  // A diagnosis asked for again later keeps the time of the first one, for the time to the root cause.
+  const time = (value: Date | string | null) =>
+    value === null ? null : new Date(value).getTime();
+  const first = time(
+    (await monitoring.getIncident(incident.id))!.aiFirstDiagnosedAt,
+  );
+  expect(first).toEqual(expect.any(Number));
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  await monitoring.recordDiagnosis(incident.id, {
+    summary: 'Still the wrong URL.',
+    rootCause: null,
+    confidence: 'high',
+    verdict: 'falseAlarm',
+    suggestedActions: [],
+    actor: agent,
+  });
+  const again = (await monitoring.getIncident(incident.id))!;
+  expect(time(again.aiFirstDiagnosedAt)).toBe(first);
+  expect(time(again.aiUpdatedAt)).toBeGreaterThan(first!);
   // The timeline entry carries no English labels of its own.
   const updates = await monitoring.listIncidentUpdates(incident.id);
   const diagnosis = updates.find((update) => update.kind === 'diagnosis')!;

@@ -149,6 +149,7 @@ const monitoringZhCN: typeof monitoringEnUS = {
       '可用率 {{uptime}} · 检查 {{total}} 次 · 失败 {{down}} 次 · 平均 {{latency}}',
     noData: '当天没有检查',
     daysAgo: '{{count}} 天前',
+    since: '数据自 {{date}} 起',
     today: '今天',
     ninetyDays: '可用率 {{uptime}}',
   },

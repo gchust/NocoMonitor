@@ -68,6 +68,7 @@ import {
   LoadError,
   MonitorStatusBadge,
   StatusDot,
+  UptimeAxis,
   UptimeBars,
 } from '../monitoring/components.js';
 import { errorText, useCanManage } from '../monitoring/utils.js';
@@ -340,14 +341,7 @@ export default function MonitorDetailPage(): ReactElement {
               </CardHeader>
               <CardContent className='space-y-2'>
                 <UptimeBars days={data.days} />
-                <div className='flex justify-between text-xs text-muted-foreground'>
-                  <span>
-                    {t('monitoring.uptime.daysAgo', {
-                      count: data.days.length,
-                    })}
-                  </span>
-                  <span>{t('monitoring.uptime.today')}</span>
-                </div>
+                <UptimeAxis days={data.days} />
               </CardContent>
             </Card>
 

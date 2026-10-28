@@ -149,6 +149,7 @@ const monitoringEnUS = {
     dayDetail:
       '{{uptime}} uptime · {{total}} checks · {{down}} failed · avg {{latency}}',
     noData: 'No checks this day',
+    since: 'Since {{date}}',
     daysAgo: '{{count}} days ago',
     today: 'Today',
     ninetyDays: '{{uptime}} uptime',

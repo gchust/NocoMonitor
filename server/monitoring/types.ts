@@ -198,6 +198,8 @@ export interface IncidentRecord {
   aiVerdict: AiVerdict | null;
   aiSuggestedActions: unknown[] | null;
   aiUpdatedAt: Date | null;
+  /** When the agent first recorded a diagnosis: `aiUpdatedAt` moves with every later one. */
+  aiFirstDiagnosedAt: Date | null;
   createdById: string | null;
   createdAt: Date;
   updatedAt: Date;
